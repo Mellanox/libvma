@@ -48,6 +48,44 @@
 #include <string.h>
 #include <errno.h>
 
+#define MODULE_NAME "lwip_out"
+
+#undef  MODULE_HDR
+#define MODULE_HDR	 	MODULE_NAME ":%d:%s() "
+
+#define vlog_printf(_log_level, _format, ... ) \
+	do { \
+		if (g_vlogger_level >= (_log_level)) { \
+			vlog_output((_log_level), _format, ##__VA_ARGS__); \
+		} \
+	} while (0)
+
+#define VLOG_PRINTF(log_level, log_fmt, log_args...) vlog_printf(log_level, MODULE_HDR log_fmt "\n", __LINE__, __FUNCTION__, ##log_args)
+
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DEBUG)
+#define __log_dbg(log_fmt, log_args...)          ((void)0)
+#else
+#define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
+#endif
+
+typedef enum {
+	VLOG_INIT	= DEFINED_VLOG_INIT,
+	VLOG_NONE	= DEFINED_VLOG_NONE,
+	VLOG_PANIC	= DEFINED_VLOG_PANIC,
+	VLOG_ERROR	= DEFINED_VLOG_ERROR,
+	VLOG_WARNING	= DEFINED_VLOG_WARNING,
+	VLOG_INFO	= DEFINED_VLOG_INFO, VLOG_DEFAULT = VLOG_INFO,
+	VLOG_DETAILS	= DEFINED_VLOG_DETAILS,
+	VLOG_DEBUG	= DEFINED_VLOG_DEBUG,
+	VLOG_FINE	= DEFINED_VLOG_FINE, VLOG_FUNC = VLOG_FINE,
+	VLOG_FINER	= DEFINED_VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
+	VLOG_ALL	= DEFINED_VLOG_ALL /* last element */
+} vlog_levels_t;
+
+void vlog_output(vlog_levels_t log_level, const char* fmt , ... );
+
+extern vlog_levels_t      g_vlogger_level;
+
 /* Define some copy-macros for checksum-on-copy so that the code looks
    nicer by preventing too many ifdef's. */
 #if TCP_CHECKSUM_ON_COPY
@@ -969,6 +1007,9 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
 static void tcp_seg_move_flags(struct tcp_seg *from, struct tcp_seg *to, u8_t flags)
 {
   u16_t from_flags = TCPH_FLAGS(from->tcphdr) & flags;
+  if (from_flags & TCP_RST) {
+    __log_dbg("RST in tcp_seg_move_flags");
+  }
 
   if ((from != to) && (to != NULL) && from_flags) {
     TCPH_SET_FLAG(to->tcphdr, from_flags);
@@ -1816,7 +1857,8 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
  * @param remote_port the remote TCP port to send the segment to
  */
 void
-tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb)
+tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb,
+        int debug_id)
 {
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
@@ -1852,6 +1894,7 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
   /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
   tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
+  __log_dbg("RST (%d): seqno %"U32_F" ackno %"U32_F".\n", debug_id, seqno, ackno);
 }
 
 /**

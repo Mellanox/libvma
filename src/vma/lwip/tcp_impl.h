@@ -56,14 +56,14 @@ void             tcp_slowtmr (struct tcp_pcb* pcb);
 void             tcp_fasttmr (struct tcp_pcb* pcb);
 
 #if LWIP_3RD_PARTY_L3
-void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb);
+void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb, int debug_id);
 #endif
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
 struct pbuf *    tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type);
 void             tcp_tx_preallocted_buffers_free(struct tcp_pcb * pcb);
 void             tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * pbuf);
-void             tcp_abandon (struct tcp_pcb *pcb, int reset);
+void             tcp_abandon (struct tcp_pcb *pcb, int reset, int debug_id);
 err_t            tcp_send_empty_ack(struct tcp_pcb *pcb);
 void             tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd);
 void             tcp_rexmit  (struct tcp_pcb *pcb);
@@ -450,7 +450,7 @@ err_t tcp_send_fin(struct tcp_pcb *pcb);
 err_t tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags);
 
 void tcp_rst(u32_t seqno, u32_t ackno,
-       u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb);
+       u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb, int debug_id);
 
 u32_t tcp_next_iss(void);
 

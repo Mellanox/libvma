@@ -1334,7 +1334,7 @@ bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 		sock->m_vma_thr = true;
 		// -- start loop
 		desc->inc_ref_count();
-		L3_level_tcp_input((pbuf *)desc, pcb);
+		L3_level_tcp_input((pbuf *)desc, pcb, 1);
 
 		if (desc->dec_ref_count() <= 1)
 			sock->m_rx_ctl_reuse_list.push_back(desc); // under sock's lock
@@ -1446,7 +1446,7 @@ void sockinfo_tcp::process_children_ctl_packets()
 			mem_buf_desc_t* desc = sock->m_rx_ctl_packets_list.get_and_pop_front();
 			sock->m_rx_ctl_packets_list_lock.unlock();
 			desc->inc_ref_count();
-			L3_level_tcp_input((pbuf *)desc, &sock->m_pcb);
+			L3_level_tcp_input((pbuf *)desc, &sock->m_pcb, 2);
 			if (desc->dec_ref_count() <= 1) //todo reuse needed?
 				sock->m_rx_ctl_reuse_list.push_back(desc);
 		}
@@ -1531,7 +1531,7 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 
 void sockinfo_tcp::abort_connection()
 {
-	tcp_abort(&(m_pcb));
+	tcp_abort(&(m_pcb), 15);
 }
 
 int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
@@ -2094,7 +2094,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
-	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
+	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb, 3);
 
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
@@ -2861,7 +2861,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 			while (!temp_list.empty()) {
 				mem_buf_desc_t* desc = temp_list.get_and_pop_front();
 				desc->inc_ref_count();
-				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
+				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb, 4);
 				if (desc->dec_ref_count() <= 1) //todo reuse needed?
 					new_sock->m_rx_ctl_reuse_list.push_back(desc);
 			}

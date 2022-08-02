@@ -82,7 +82,6 @@ typedef void (*tcp_seg_free_fn)(void* p_conn, struct tcp_seg * seg);
 
 void register_tcp_seg_free(tcp_seg_free_fn fn);
 
-
 extern tcp_tx_pbuf_alloc_fn external_tcp_tx_pbuf_alloc;
 extern tcp_tx_pbuf_free_fn external_tcp_tx_pbuf_free;
 extern tcp_seg_alloc_fn external_tcp_seg_alloc;
@@ -517,7 +516,7 @@ err_t            tcp_connect (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
 
 err_t            tcp_listen(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *conn_pcb);
 
-void             tcp_abort (struct tcp_pcb *pcb);
+void             tcp_abort (struct tcp_pcb *pcb, int debug_id);
 err_t            tcp_close   (struct tcp_pcb *pcb);
 err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 

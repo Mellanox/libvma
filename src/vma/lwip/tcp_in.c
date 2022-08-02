@@ -91,7 +91,7 @@ tcp_quickack(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
 #if LWIP_3RD_PARTY_L3
 void
-L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
+L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb, int debug_id)
 {
     u8_t hdrlen;
     err_t err;
@@ -225,7 +225,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 							/* received data although already closed -> abort (send RST) to
 					                       notify the remote host that not all data has been processed */
 							pbuf_free(in_data.recv_data);
-							tcp_abort(pcb);
+							tcp_abort(pcb, 13);
 							goto aborted;
 						}
 						pbuf_split_64k(in_data.recv_data, &rest);
@@ -315,7 +315,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
             TCP_STATS_INC(tcp.proterr);
             TCP_STATS_INC(tcp.drop);
             tcp_rst(in_data.ackno, in_data.seqno + in_data.tcplen, in_data.tcphdr->dest,
-            		in_data.tcphdr->src, pcb);
+                       in_data.tcphdr->src, pcb, debug_id);
         }
         pbuf_free(p);
     }
@@ -358,7 +358,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
        RST. */
     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
     tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
-      in_data->tcphdr->dest, in_data->tcphdr->src, NULL);
+      in_data->tcphdr->dest, in_data->tcphdr->src, NULL, 5);
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
 
@@ -421,7 +421,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     /* Send a SYN|ACK together with the MSS option. */
     rc = tcp_enqueue_flags(npcb, TCP_SYN | TCP_ACK);
     if (rc != ERR_OK) {
-      tcp_abandon(npcb, 0);
+      tcp_abandon(npcb, 0, 12);
       return rc;
     }
     return tcp_output(npcb);
@@ -456,7 +456,7 @@ tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data)
     if (TCP_SEQ_BETWEEN(in_data->seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
       /* If the SYN is in the window it is an error, send a reset */
       tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-        in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+        in_data->tcphdr->dest, in_data->tcphdr->src, pcb, 6);
       return ERR_OK;
     }
   } else if (in_data->flags & TCP_FIN) {
@@ -593,7 +593,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     else if (in_data->flags & TCP_ACK) {
       /* send a RST to bring the other side in a non-synchronized state. */
       tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-        in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+        in_data->tcphdr->dest, in_data->tcphdr->src, pcb, 7);
     }
     break;
   case SYN_RCVD:
@@ -613,7 +613,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
            * the connection. */
           /* Already aborted? */
           if (err != ERR_ABRT) {
-            tcp_abort(pcb);
+            tcp_abort(pcb, 14);
           }
           return ERR_ABRT;
         }
@@ -639,7 +639,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       } else {
         /* incorrect ACK number, send RST */
         tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-                in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+                in_data->tcphdr->dest, in_data->tcphdr->src, pcb, 8);
       }
     } else if ((in_data->flags & TCP_SYN) && (in_data->seqno == pcb->rcv_nxt - 1)) {
       /* Looks like another copy of the SYN - retransmit our SYN-ACK */

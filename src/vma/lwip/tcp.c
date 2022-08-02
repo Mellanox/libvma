@@ -80,6 +80,7 @@ void register_tcp_seg_free(tcp_seg_free_fn fn)
 {
     external_tcp_seg_free = fn;
 }
+
 #endif
 
 /* allow user to be notified upon tcp_state changes */
@@ -151,7 +152,7 @@ tcp_tmr(struct tcp_pcb* pcb)
  *         another err_t if closing failed and pcb is not freed
  */
 static err_t
-tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
+tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data, int debug_id)
 {
   err_t err;
 
@@ -163,7 +164,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
 
       /* don't call tcp_abort here: we must not deallocate the pcb since
          that might not be expected when calling tcp_close */
-      tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb);
+      tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb, debug_id);
 
       tcp_pcb_purge(pcb);
 
@@ -266,7 +267,7 @@ tcp_close(struct tcp_pcb *pcb)
     pcb->flags |= TF_RXCLOSED;
   }
   /* ... and close */
-  return tcp_close_shutdown(pcb, 1);
+  return tcp_close_shutdown(pcb, 1, 9);
 }
 
 /**
@@ -290,7 +291,7 @@ tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx)
     pcb->flags |= TF_RXCLOSED;
     if (shut_tx) {
       /* shutting down the tx AND rx side is the same as closing for the raw API */
-      return tcp_close_shutdown(pcb, 1);
+      return tcp_close_shutdown(pcb, 1, 10);
     }
     /* ... and free buffered data */
     if (pcb->refused_data != NULL) {
@@ -305,7 +306,7 @@ tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx)
   case SYN_RCVD:
   case ESTABLISHED:
   case CLOSE_WAIT:
-    return tcp_close_shutdown(pcb, 0);
+    return tcp_close_shutdown(pcb, 0, 11);
   default:
       /* Not (yet?) connected, cannot shutdown the TX side as that would bring us
 	into CLOSED state, where the PCB is deallocated. */
@@ -325,7 +326,7 @@ tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx)
  * @param reset boolean to indicate whether a reset should be sent
  */
 void
-tcp_abandon(struct tcp_pcb *pcb, int reset)
+tcp_abandon(struct tcp_pcb *pcb, int reset, int debug_id)
 {
   u32_t seqno, ackno;
   u16_t remote_port, local_port;
@@ -372,7 +373,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
     if (send_rst) {
       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
-      tcp_rst(seqno, ackno, local_port, remote_port, pcb);
+      tcp_rst(seqno, ackno, local_port, remote_port, pcb, debug_id);
     }
   }
   (void)local_ip;  /* Fix warning -Wunused-but-set-variable */
@@ -390,9 +391,9 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
  * @param pcb the tcp pcb to abort
  */
 void
-tcp_abort(struct tcp_pcb *pcb)
+tcp_abort(struct tcp_pcb *pcb, int debug_id)
 {
-  tcp_abandon(pcb, 1);
+  tcp_abandon(pcb, 1, debug_id);
 }
 
 /**
@@ -817,7 +818,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	  TCP_EVENT_ERR(pcb->errf, pcb->my_container, err);
 
 	  if (pcb_reset) {
-		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb);
+		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb, 16);
 	  }
 	  set_tcp_state(pcb, CLOSED);
 	} else {
