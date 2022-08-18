@@ -757,11 +757,9 @@ ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 	 * inconsistencies in setting errno values
 	 */
 	if (unlikely((m_sock_offload != TCP_SOCK_LWIP) ||
-			(NULL == p_iov) ||
-			(0 >= sz_iov) ||
-			(NULL == p_iov[0].iov_base))) {
+			unlikely(NULL == p_iov) || unlikely(0 >= sz_iov))) {
 		goto tx_packet_to_os;
-		}
+	}
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_START;
@@ -770,7 +768,6 @@ ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 retry_is_ready:
 
 	if (unlikely(!is_rts())) {
-
 		if (m_conn_state == TCP_CONN_CONNECTING) {
 			si_tcp_logdbg("TX while async-connect on socket go to poll");
 			rx_wait_helper(poll_count, false);
@@ -828,6 +825,9 @@ retry_is_ready:
 
 	for (int i = 0; i < sz_iov; i++) {
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
+		if (unlikely(!p_iov[i].iov_base)) {
+			continue;
+		}
 
 		pos = 0;
 		tx_ptr = p_iov[i].iov_base;

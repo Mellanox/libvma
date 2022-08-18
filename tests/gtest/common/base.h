@@ -33,6 +33,18 @@
 #ifndef TESTS_GTEST_COMMON_BASE_H_
 #define TESTS_GTEST_COMMON_BASE_H_
 
+#define DO_WHILE0(x)                                                                               \
+    do {                                                                                           \
+        x                                                                                          \
+    } while (0)
+
+#define EXPECT_LE_ERRNO(val1, val2)                                                                \
+    DO_WHILE0(EXPECT_LE((val1), (val2));                                                           \
+              if (val1 > val2) { log_trace("Failed. errno = %d\n", errno); })
+
+#define EXPECT_EQ_ERRNO(val1, val2)                                                                \
+    DO_WHILE0(EXPECT_EQ((val1), (val2));                                                           \
+              if (val1 != val2) { log_trace("Failed. errno = %d\n", errno); })
 
 /**
  * Base class for tests
@@ -42,6 +54,7 @@ public:
 	static int sock_noblock(int fd);
 	static int event_wait(struct epoll_event *event);
 	static int wait_fork(int pid);
+	static int set_socket_rcv_timeout(int fd, int timeout_sec);
 	static void handle_signal(int signo);
 
 protected:

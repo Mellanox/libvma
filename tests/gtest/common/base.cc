@@ -76,6 +76,14 @@ void test_base::cleanup()
 {
 }
 
+int test_base::set_socket_rcv_timeout(int fd, int timeout_sec)
+{
+    struct timeval tv;
+    tv.tv_sec = timeout_sec;
+    tv.tv_usec = 0;
+    return setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+}
+
 bool test_base::barrier()
 {
     int ret = pthread_barrier_wait(&m_barrier);

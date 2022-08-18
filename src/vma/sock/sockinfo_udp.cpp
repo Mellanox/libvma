@@ -1232,9 +1232,11 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 	m_p_socket_stats->n_rx_ready_byte_limit = n_rx_ready_bytes_limit_new;
 
 	m_lock_rcv.lock();
-	while (m_p_socket_stats->n_rx_ready_byte_count > m_p_socket_stats->n_rx_ready_byte_limit) {
-		if (m_n_rx_pkt_ready_list_count) {
-			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
+	while (m_n_rx_pkt_ready_list_count) {
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
+		if (m_p_socket_stats->n_rx_ready_byte_count > m_p_socket_stats->n_rx_ready_byte_limit ||
+				p_rx_pkt_desc->rx.sz_payload == 0U) {
+			m_rx_pkt_ready_list.pop_front();
 			m_n_rx_pkt_ready_list_count--;
 			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
@@ -1548,10 +1550,7 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 	 * (65,535 - 8 byte UDP header - 20 byte IP header).
 	 */
 	if (unlikely((m_state == SOCKINFO_CLOSED) || (g_b_exit) ||
-			(NULL == p_iov) ||
-			(0 >= sz_iov) ||
-			(NULL == p_iov[0].iov_base) ||
-			(65507 < p_iov[0].iov_len))) {
+			(NULL == p_iov) || (0 >= sz_iov))) {
 		goto tx_packet_to_os;
 	}
 
@@ -1665,7 +1664,7 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 		attr.flags = (vma_wr_tx_packet_attr)((b_blocking * VMA_TX_PACKET_BLOCK) | (is_dummy * VMA_TX_PACKET_DUMMY));
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
-			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, attr);
+			ret = p_dst_entry->fast_send(p_iov, sz_iov, attr);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
@@ -1678,7 +1677,7 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
-			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
+			ret = p_dst_entry->fast_send(p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers

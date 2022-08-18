@@ -306,15 +306,8 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 #ifdef DEFINED_TSO
 ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr)
 {
-	// Calc user data payload size
-	ssize_t sz_data_payload = 0;
-	for (ssize_t i = 0; i < sz_iov; i++)
-		sz_data_payload += p_iov[i].iov_len;
-
-	if (unlikely(sz_data_payload > 65536)) {
-		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), (is_set(attr.flags, VMA_TX_PACKET_BLOCK) ? "true" : "false"));
-		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
-		errno = EMSGSIZE;
+	ssize_t sz_data_payload = check_payload_size(p_iov, sz_iov);
+	if (unlikely(0 > sz_data_payload)) { // The errno is set inside check_payload_size.
 		return -1;
 	}
 
@@ -364,15 +357,8 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 {
 	NOT_IN_USE(is_rexmit);
 
-	// Calc user data payload size
-	ssize_t sz_data_payload = 0;
-	for (ssize_t i = 0; i < sz_iov; i++)
-		sz_data_payload += p_iov[i].iov_len;
-
-	if (unlikely(sz_data_payload > 65536)) {
-		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), b_blocked?"true":"false");
-		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
-		errno = EMSGSIZE;
+	ssize_t sz_data_payload = check_payload_size(p_iov, sz_iov);
+	if (unlikely(0 > sz_data_payload)) { // The errno is set inside check_payload_size.
 		return -1;
 	}
 
@@ -429,8 +415,36 @@ void dst_entry_udp::init_sge()
 #endif /* DEFINED_TSO */
 }
 
+ssize_t dst_entry_udp::check_payload_size(const iovec* p_iov, ssize_t sz_iov)
+{
+	// Calc user data payload size
+	ssize_t sz_data_payload = 0;
+	for (ssize_t i = 0; i < sz_iov; i++) {
+		// Imitate Kernel behaviour.
+		if (unlikely(!p_iov[i].iov_base) && unlikely(p_iov[i].iov_len)) {
+			errno = EFAULT;
+			return -1;
+		}
+
+		sz_data_payload += p_iov[i].iov_len;
+	}
+
+	if (unlikely(sz_data_payload > 65507)) { // See comment in sockinfo_udp::tx
+		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port));
+		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
+		errno = EMSGSIZE;
+		return -1;
+	}
+
+	return sz_data_payload;
+}
+
 ssize_t dst_entry_udp::pass_buff_to_neigh(const iovec *p_iov, size_t sz_iov, uint16_t packet_id)
 {
+	if (unlikely(0 > check_payload_size(p_iov, sz_iov))) { // The errno is set inside check_payload_size.
+		return -1;
+	}
+
 	m_header_neigh.init();
 	m_header_neigh.configure_udp_header(m_dst_port, m_src_port);
 
