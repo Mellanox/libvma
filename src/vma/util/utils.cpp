@@ -342,7 +342,7 @@ int memcpy_fromiovec(u_int8_t* p_dst, const struct iovec* p_iov, size_t sz_iov, 
 	/* Copy len size into pBuf */
 	int n_total = 0;
 	while (n_iovpos < (int)sz_iov && sz_data > 0) {
-		if (p_iov[n_iovpos].iov_len)
+		if (likely(p_iov[n_iovpos].iov_len) && likely(p_iov[n_iovpos].iov_base))
 		{
 			u_int8_t* p_src = ((u_int8_t*)(p_iov[n_iovpos].iov_base)) + sz_src_start_offset;
 			int sz_data_block_to_copy = min(sz_data, p_iov[n_iovpos].iov_len - sz_src_start_offset);

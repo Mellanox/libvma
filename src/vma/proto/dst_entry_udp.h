@@ -69,6 +69,7 @@ private:
 
 	inline ssize_t fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr, size_t sz_udp_payload, ssize_t sz_data_payload);
 	ssize_t fast_send_fragmented(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr, size_t sz_udp_payload, ssize_t sz_data_payload);
+	ssize_t check_payload_size(const iovec* p_iov, ssize_t sz_iov);
 
 	const uint32_t m_n_sysvar_tx_bufs_batch_udp;
 	const bool m_b_sysvar_tx_nonblocked_eagains;
