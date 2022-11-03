@@ -204,66 +204,7 @@ fi
 %{_mandir}/man8/vma_stats.*
 
 %changelog
-* Mon Oct 24 2022 Alexander Grissik <agrissik@nvidia.com> 9.7.1-1
-- Bump 9.7.1
+* Mon Oct 24 2022 NVIDIA CORPORATION <networking-support@nvidia.com> 9.7.1-1
+- Bump version to 9.7.1
+- Please refer to CHANGES for full changelog.
 
-* Wed Sep 14 2022 Alexander Grissik <agrissik@nvidia.com> 9.7.0-1
-- Bump 9.7.0
-
-* Wed Jul 14 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.4-1
-- Bump 9.6.4
-
-* Wed Jul 13 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.3-1
-- Bump 9.6.3
-
-* Wed Jul 6 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.2-1
-- Bump 9.6.2
-
-* Thu Jun 23 2022 Dmytro Podgornyi <dmytrop@nvidia.com> 9.6.1-1
-- Bump 9.6.1
-
-* Wed May 18 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.0-1
-- Bump 9.6.0
-
-* Fri Apr 29 2022 Igor Ivanov <igori@nvidia.com> 9.5.3-1
-- Bump 9.5.3
-
-* Mon Apr 4 2022 Igor Ivanov <igori@nvidia.com> 9.5.2-1
-- Bump 9.5.2
-
-* Mon Mar 14 2022 Igor Ivanov <igori@nvidia.com> 9.5.1-1
-- Bump 9.5.1
-
-* Mon Feb 14 2022 Igor Ivanov <igori@nvidia.com> 9.5.0-1
-- Bump 9.5.0
-
-* Tue Oct 5 2021 Igor Ivanov <igori@nvidia.com> 9.4.0-1
-- Bump 9.4.0
-
-* Thu Jun 3 2021 Igor Ivanov <igor.ivanov.va@gmail.com> 9.3.1-1
-- Bump 9.3.1
-- Remove dependencies from systemd-rpm-macros for old OSs
-
-* Tue May 11 2021 Igor Ivanov <igor.ivanov.va@gmail.com> 9.3.0-1
-- Bump 9.3.0
-
-* Mon Nov 23 2020 Igor Ivanov <igor.ivanov.va@gmail.com> 9.2.1-1
-- Improve systemd support
-
-* Fri Apr 17 2020 Igor Ivanov <igor.ivanov.va@gmail.com> 9.0.2-1
-- Align with Fedora guidelines
-
-* Thu Feb 7 2019 Igor Ivanov <igor.ivanov.va@gmail.com> 8.8.2-1
-- Improve package update processing
-
-* Tue Dec 19 2017 Igor Ivanov <igor.ivanov.va@gmail.com> 8.5.1-1
-- Add systemd support
-
-* Tue May 9 2017 Ophir Munk <ophirmu@mellanox.com> 8.3.4-1
-- Add libvma-debug.so installation
-
-* Mon Nov 28 2016 Igor Ivanov <igor.ivanov.va@gmail.com> 8.2.2-1
-- Add daemon
-
-* Mon Jan  4 2016 Avner BenHanoch <avnerb@mellanox.com> 7.0.12-1
-- Initial Packaging

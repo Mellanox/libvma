@@ -1,7 +1,7 @@
 Source: libvma
 Section: net
 Priority: optional
-Maintainer: Liran Oz <lirano@mellanox.com>
+Maintainer: NVIDIA CORPORATION <networking-support@nvidia.com>
 Build-Depends: debhelper (>= 7),
  pkg-config,
  autoconf,
