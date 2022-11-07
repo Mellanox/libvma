@@ -24,17 +24,11 @@ install-exec-hook:
 		mkdir -p $(DESTDIR)$(prefix)/lib/systemd/system/; \
 		cp $(top_builddir)/contrib/scripts/vma.service $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 		chmod 644 $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
-	else \
-		mkdir -p $(DESTDIR)/$(sysconfdir)/init.d; \
-		cp $(top_builddir)/contrib/scripts/vma.init $(DESTDIR)$(sysconfdir)/init.d/vma; \
-		chmod 755 $(DESTDIR)$(sysconfdir)/init.d/vma; \
 	fi
 
 uninstall-hook:
 	if systemctl >/dev/null 2>&1; then \
 		rm -rf $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
-	else \
-		rm -rf $(DESTDIR)$(sysconfdir)/init.d/vma; \
 	fi
 
 install-all: install

@@ -122,12 +122,6 @@ if [ $1 = 1 ]; then
         %else
             systemctl --no-reload enable vma.service >/dev/null 2>&1 || true
         %endif
-    elif [ -e /sbin/chkconfig ]; then
-        /sbin/chkconfig --add vma
-    elif [ -e /usr/sbin/update-rc.d ]; then
-        /usr/sbin/update-rc.d vma defaults
-    else
-        %{_libdir}/lsb/install_initd %{_sysconfdir}/init.d/vma
     fi
 fi
 
@@ -144,15 +138,6 @@ if [ $1 = 0 ]; then
             systemctl --no-reload disable vma.service >/dev/null 2>&1 || true
             systemctl stop vma.service || true
         %endif
-    elif [ -e /sbin/chkconfig ]; then
-        %{_sysconfdir}/init.d/vma stop
-        /sbin/chkconfig --del vma
-    elif [ -e /usr/sbin/update-rc.d ]; then
-        %{_sysconfdir}/init.d/vma stop
-        /usr/sbin/update-rc.d -f vma remove
-    else
-        %{_sysconfdir}/init.d/vma stop
-        %{_libdir}/lsb/remove_initd %{_sysconfdir}/init.d/vma
     fi
 fi
 
@@ -183,8 +168,6 @@ fi
 %{_sbindir}/vmad
 %if "%{use_systemd}" == "1"
 %{_prefix}/lib/systemd/system/vma.service
-%else
-%{_sysconfdir}/init.d/vma
 %endif
 %{_mandir}/man7/vma.*
 %{_mandir}/man8/vmad.*

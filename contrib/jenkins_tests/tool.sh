@@ -53,31 +53,6 @@ function check_daemon()
         if [ "0" == "$ret" -a "" != "$(pgrep ${prj_service})" ]; then
             ret=1
         fi
-    else
-        service=${install_dir}/etc/init.d/vma
-        service_arg=""
-
-        echo "System has been booted with SystemV" >> ${out_log}
-        echo "daemon check output: ${service}" >> ${out_log}
-
-        if [ $(${sudo_cmd} ${service} start >>${out_log} 2>&1 || echo $?) ]; then
-            ret=1
-        fi
-        sleep 3
-        if [ "0" == "$ret" -a "" == "$(pgrep ${prj_service})" ]; then
-            ret=1
-        fi
-        if [ $(${sudo_cmd} ${service} status >>${out_log} 2>&1 || echo $?) ]; then
-            ret=1
-        fi
-        if [ $(${sudo_cmd} ${service} stop >>${out_log} 2>&1 || echo $?) ]; then
-            ret=1
-        fi
-        sleep 3
-        # Under docker containers service can be a zombie after killing
-        if [ "0" == "$ret" -a "" != "$(ps aux | grep ${prj_service} | egrep -v 'grep|defunct')" ]; then
-            ret=1
-        fi
     fi
 
     eval "${sudo_cmd} pkill -9 ${prj_service} 2>/dev/null || true"

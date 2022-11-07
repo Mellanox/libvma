@@ -4,10 +4,4 @@
 
 if systemctl >/dev/null 2>&1; then
     systemctl --no-reload enable vma.service >/dev/null 2>&1 || true
-elif [ -e /sbin/chkconfig ]; then
-    /sbin/chkconfig --add vma || true
-elif [ -e /usr/sbin/update-rc.d ]; then
-    /usr/sbin/update-rc.d vma defaults || true
-else
-    /usr/lib/lsb/install_initd /etc/init.d/vma || true
 fi
