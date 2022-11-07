@@ -3,13 +3,4 @@
 if systemctl >/dev/null 2>&1; then
     systemctl --no-reload disable vma.service >/dev/null 2>&1 || true
     systemctl stop vma.service || true
-elif [ -e /sbin/chkconfig ]; then
-    /etc/init.d/vma stop || true
-    /sbin/chkconfig --del vma || true
-elif [ -e /usr/sbin/update-rc.d ]; then
-    /etc/init.d/vma stop || true
-    /usr/sbin/update-rc.d -f vma remove || true
-else
-    /etc/init.d/vma stop || true
-    /usr/lib/lsb/remove_initd /etc/init.d/vma || true
 fi
