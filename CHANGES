@@ -1,3 +1,9 @@
+Version 9.7.2-1:
+Date + Time 2022-11-14
+=============================================================
+Fixed:
+        - RM #3249310 Support only systemctl for vma service setup/removal
+
 Version 9.7.1-1:
 Date + Time 2022-10-24
 =============================================================
