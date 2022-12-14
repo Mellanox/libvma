@@ -27,21 +27,13 @@ env:
 
 runs_on_dockers:
 # mofed
-  - {name: 'rhel8.3-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:mofed-5.2-0.5.3.0', category: 'base', arch: 'x86_64'}
-  - {name: 'sl15sp2-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
-  - {name: 'fc31-mofed-x86_64',    url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.6-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:mofed-5.6-0.4.5.0', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel9.0-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/builder:mofed-5.7-0.2.3.0', category: 'base', arch: 'x86_64'}
+  - {name: 'sl15sp4-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/sles15sp4/builder:mofed-5.6-2.0.9.0', category: 'base', arch: 'x86_64'}
   - {name: 'ub20.04-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/ubuntu20.04/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
+  - {name: 'ub20.04-mofed-aarch64', url: 'harbor.mellanox.com/swx-infra/aarch64/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'aarch64'}
+  - {name: 'ub20.04-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu20.04/builder:inbox', category: 'base', arch: 'aarch64'}
   - {name: 'ub22.04-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/builder:mofed-5.7-0.1.1.0', category: 'base', arch: 'x86_64'}
-
-#  - {name: 'ub20.04-mofed-aarch64', url: 'harbor.mellanox.com/swx-infra/aarch64/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'aarch64'}
-#  - {name: 'ub20.04-mofed-ppc64le', url: 'harbor.mellanox.com/swx-infra/ppc64le/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'ppc64le'}
-# inbox
-  - {name: 'ub21.10-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu21.10/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.3-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.3-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel8.3/builder:inbox', category: 'base', arch: 'aarch64'}
-# legacy
-  - {name: 'rhel7.6-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:mofed-5.1-0.6.6.0', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel7.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:inbox', category: 'base', arch: 'x86_64'}
 # tool
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
