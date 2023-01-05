@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 #@copyright:
-# Copyright (c) 2015-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2015-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # This software is available to you under a choice of one of two
 # licenses.  You may choose to be licensed under the terms of the GNU
