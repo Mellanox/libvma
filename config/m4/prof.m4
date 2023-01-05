@@ -1,6 +1,6 @@
 # prof.m4 - Profiling, instrumentation
 # 
-# Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2001-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #
 
