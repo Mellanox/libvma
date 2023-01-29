@@ -15,6 +15,7 @@ general:
         - ".*LICENSE"
         - ".*NOTICE"
         - ".*README"
+        - ".*COPYING"
         - ".*TODO"
         - ".*license"
         - ".*\\.md"
