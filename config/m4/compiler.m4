@@ -143,7 +143,7 @@ case $CC in
                 -Wno-free-nonheap-object "
         CXXFLAGS="$CXXFLAGS -Wshadow -Wall -Wextra -Werror -Wundef \
                 -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs \
-                -Wno-free-nonheap-object "
+                -Wno-free-nonheap-object -Wno-overloaded-virtual "
         ;;
     icc*|icpc*)
         AC_MSG_RESULT([icc])
