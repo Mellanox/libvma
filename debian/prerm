@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if systemctl >/dev/null 2>&1; then
+if command -v systemctl >/dev/null 2>&1; then
     systemctl --no-reload disable vma.service >/dev/null 2>&1 || true
     systemctl stop vma.service || true
 fi
