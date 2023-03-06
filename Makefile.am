@@ -20,14 +20,14 @@ mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
 mydoc_DATA = README CHANGES
 
 install-exec-hook:
-	if systemctl >/dev/null 2>&1; then \
+	if command -v systemctl >/dev/null 2>&1; then \
 		mkdir -p $(DESTDIR)$(prefix)/lib/systemd/system/; \
 		cp $(top_builddir)/contrib/scripts/vma.service $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 		chmod 644 $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 	fi
 
 uninstall-hook:
-	if systemctl >/dev/null 2>&1; then \
+	if command -v systemctl >/dev/null 2>&1; then \
 		rm -rf $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 	fi
 
