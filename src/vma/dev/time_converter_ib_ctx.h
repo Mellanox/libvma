@@ -42,7 +42,7 @@
 class time_converter_ib_ctx : public time_converter
 {
 public:
-	time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock);
+	time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock_khz);
 
 	virtual ~time_converter_ib_ctx() {};
 
