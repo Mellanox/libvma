@@ -34,14 +34,14 @@ runs_on_dockers:
   - {name: 'ub20.04-mofed-aarch64', url: 'harbor.mellanox.com/swx-infra/aarch64/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'aarch64'}
   - {name: 'rhel8.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'base', arch: 'x86_64'}
   - {name: 'ub22.04-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/builder:mofed-5.7-0.1.1.0', category: 'base', arch: 'x86_64'}
-  - {name: 'fc36-x86_64',  url: 'harbor.mellanox.com/rivermax/x86_64/fedora36:builder', category: 'base', arch: 'x86_64'}
+#  - {name: 'fc36-x86_64',  url: 'harbor.mellanox.com/rivermax/x86_64/fedora36:builder', category: 'base', arch: 'x86_64'}
 # tool
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.14', category: 'tool', arch: 'x86_64', tag: '0.0.14'}
 
 runs_on_agents:
-  - {nodeLabel: 'r-aa-fatty09', category: 'base'}
+  - {nodeLabel: 'beni09', category: 'base'}
   - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
   - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
 
@@ -138,7 +138,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09'}"
+      - "{nodeLabel: 'beni09'}"
     run: |
       [ "x${do_style}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_style=${action} ./contrib/test_jenkins.sh
@@ -190,7 +190,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+      - "{nodeLabel: 'beni09', variant:1}"
     run: |
       [ "x${do_cppcheck}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cppcheck=${action} ./contrib/test_jenkins.sh
@@ -207,7 +207,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+      - "{nodeLabel: 'beni09', variant:1}"
     run: |
       [ "x${do_csbuild}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_csbuild=${action} ./contrib/test_jenkins.sh
@@ -224,7 +224,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+      - "{nodeLabel: 'beni09', variant:1}"
     run: |
       [ "x${do_test}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_run=${action} ./contrib/test_jenkins.sh
@@ -241,7 +241,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+      - "{nodeLabel: 'beni09', variant:1}"
     run: |
       [ "x${do_gtest}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_gtest=${action} ./contrib/test_jenkins.sh
@@ -260,7 +260,7 @@ steps:
     containerSelector:
       - "{name: 'skip-container'}"
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+      - "{nodeLabel: 'beni09', variant:1}"
     run: |
       [ "x${do_valgrind}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_vg=${action} ./contrib/test_jenkins.sh

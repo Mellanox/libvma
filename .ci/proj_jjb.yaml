@@ -84,7 +84,7 @@
             description: "Collect artifacts."
         - bool:
             name: "do_blackduck"
-            default: true
+            default: false 
             description: "Run BlackDuck."
         - bool:
             name: "do_copyrights"
