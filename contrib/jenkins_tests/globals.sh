@@ -198,14 +198,19 @@ function do_check_result()
 }
 
 # Detect interface ip
-# $1 - [ib|eth] to select link type or empty to select the first found
-# $2 - [empty|mlx4|mlx5]
+# $1 - [ib|eth|inet6] to select link type or empty to select the first found
+# $2 - [empty|mlx4|mlx5|ConnectX-4|ConnectX-5|ConnectX-6|ConnectX-7] (default: ConnectX-7)
 # $3 - ip address not to get
 #
 function do_get_ip()
 {
+    opt1=${1:-'eth'}
+    opt2=${2:-'ConnectX-5'}
+    opt3=${3:-''}
+
     sv_ifs=${IFS}
-    netdevs=$(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' ')
+    # filter by second parameter
+    netdevs=$(${sudo_cmd} ibdev2netdev -v | grep Up | grep "$opt2" | awk -F' ' '{ print $(NF-1) }')
     IFS=$'\n' read -rd '' -a netdev_ifs <<< "${netdevs}"
     lnkifs=$(ip -o link | awk '{print $2,$(NF-2)}')
     IFS=$'\n' read -rd '' -a lnk_ifs <<< "${lnkifs}"
@@ -240,22 +245,19 @@ function do_get_ip()
         fi
     fi
 
-    for ip in ${ifs_array[@]}; do
-        if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
-            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
-            if [ -n "$(ibdev2netdev | grep $ip | grep mlx5)" ]; then
-                local ofed_v=$(ofed_info -s | grep OFED | sed 's/.*[l|X]-\([0-9\.]\+\).*/\1/')
-                if [ $(echo $ofed_v | grep 4.[1-9] >/dev/null 2>&1 || echo $?) ]; then
-                    echo "$ip is CX4 device that does not support IPoIB in OFED: $ofed_v"
-                    unset found_ip
-                fi
-            fi
-        elif [ -n "$1" -a "$1" == "eth" -a -n "$(ip link show $ip | grep 'link/eth')" ]; then
-            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
-        elif [ -z "$1" ]; then
-            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+    # collect ip addresses
+    for _if in ${ifs_array[@]}; do
+        if [ -n "$opt1" -a "$opt1" == "ib" -a -n "$(ip link show $_if | grep 'link/inf')" ]; then
+            found_ip=$(ip -4 address show $_if | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+        elif [ -n "$opt1" -a "$opt1" == "inet6" -a -n "$(ip link show $_if | grep 'link/eth')" ]; then
+            found_ip=$(ip -6 address show $_if | grep 'inet6' | sed 's/.*inet6 \([0-9a-fA-F\:]\+\).*/\1/' | grep -v fe80 | head -n 1)
+        elif [ -n "$opt1" -a "$opt1" == "eth" -a -n "$(ip link show $_if | grep 'link/eth')" ]; then
+            found_ip=$(ip -4 address show $_if | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/' | head -n1)
+        elif [ -z "$opt1" ]; then
+            found_ip=$(ip -4 address show $_if | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/' | head -n1)
         fi
-        if [ -n "$found_ip" -a "$found_ip" != "$3" ]; then
+        # skip ip address passed as the third parameter
+        if [ -n "$found_ip" -a "$found_ip" != "$opt3" ]; then
             echo $found_ip
             break
         fi
