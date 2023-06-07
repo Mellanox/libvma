@@ -4,6 +4,7 @@ main()
 {
 WORKSPACE=${WORKSPACE:=$(pwd)}
 BUILD_NUMBER=${BUILD_NUMBER:=0}
+HOSTNAME=${HOSTNAME:=$(uname -n 2>/dev/null)}
 
 # exit code
 rc=0
@@ -287,29 +288,30 @@ do_check_dpcp()
 
     ret=0
     pushd $(pwd) > /dev/null 2>&1
-    dpcp_dir=${WORKSPACE}/${prefix}/dpcp
+    dpcp_dir=${WORKSPACE}/${prefix}/_dpcp-last
     mkdir -p ${dpcp_dir} > /dev/null 2>&1
     cd ${dpcp_dir}
 
     set +e
-    if [ $ret -eq 0 ]; then
-        eval "timeout -s SIGKILL 20s git clone git@github.com:Mellanox/dpcp.git . " > /dev/null 2>&1
+    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
+		branch=${main:-ghprbTargetBranch}
+		eval "timeout -s SIGKILL 30s git clone --branch $branch git@github.com:Mellanox/dpcp.git . " > /dev/null 2>&1
         ret=$?
     fi
 
     if [ $ret -eq 0 ]; then
-        last_tag=$(git tag -l --format "%(refname:short)" --sort=-version:refname | head -n1)
+        last_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
         if [ -z "$last_tag" ]; then
             ret=1
         fi
     fi
 
-    if [ $ret -eq 0 ]; then
+    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
         eval "git checkout $last_tag" > /dev/null 2>&1
         ret=$?
     fi
 
-    if [ $ret -eq 0 ]; then
+    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
         eval "./autogen.sh && ./configure --prefix=${dpcp_dir}/install && make $make_opt install" > /dev/null 2>&1
         ret=$?
     fi

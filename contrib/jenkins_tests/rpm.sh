@@ -46,9 +46,9 @@ test_id=0
 if [ $opt_tarball -eq 1 ]; then
     # Automake 1.10.1 has a bug https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=456632
     if [ -n "$(automake --version | grep 'automake (GNU automake) 1.10.1')" ]; then
-        test_exec='make dist'
+        test_exec='make $make_opt dist'
     else
-        test_exec='make dist && make distcheck'
+        test_exec='make $make_opt dist && make $make_opt distcheck'
     fi
 
     do_check_result "$test_exec" "$test_id" "tarball" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
@@ -75,14 +75,14 @@ if [ $opt_binrpm -eq 1 ]; then
     if [ $opt_rpm -eq 1 ]; then
         test_exec="env RPM_BUILD_NCPUS=${NPROC} rpmbuild -bb $rpmmacros $rpmopts $rpmspec"
     else
-        test_exec="dpkg-buildpackage -us -uc -b $make_opt"
+        test_exec="dpkg-buildpackage -us -uc -b"
     fi
     do_check_result "$test_exec" "$test_id" "binrpm" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi
 
 if [ $opt_checkpkg -eq 1 ]; then
-    test_exec="env RPM_BUILD_NCPUS=${NPROC} VMA_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
+    test_exec="env RPM_BUILD_NCPUS=${NPROC} PRJ_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -a \"configure_options=$jenkins_test_custom_configure\" -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
     do_check_result "$test_exec" "$test_id" "checkpkg" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi

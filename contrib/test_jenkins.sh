@@ -15,7 +15,7 @@
 
 echo "======================================================"
 echo
-echo "# starting on host --------->  $(hostname 2>/dev/null) "
+echo "# starting on host --------->  ${HOSTNAME} "
 echo "# arguments called with ---->  ${@}        "
 echo "# path to me --------------->  ${0}        "
 echo "# parent path -------------->  ${0%/*}     "
@@ -54,10 +54,12 @@ echo "# BUILD_NUMBER ------------->  ${BUILD_NUMBER} "
 echo "# TARGET ------------------->  ${TARGET}       "
 echo
 
+# When create artifact
 # Values: none, fail, always
 #
 jenkins_opt_artifacts=${jenkins_opt_artifacts:="always"}
 
+# Stop verification after number of erros
 # Values: 0..N test (max 100)
 #
 jenkins_opt_exit=${jenkins_opt_exit:="6"}
@@ -124,7 +126,7 @@ for target_v in "${target_list[@]}"; do
     ret=0
     IFS=':' read target_name target_option <<< "$target_v"
 
-    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/vma-${BUILD_NUMBER}-$(hostname -s)-${target_name}"
+    export jenkins_test_artifacts="${WORKSPACE}/${prefix}/vma-${BUILD_NUMBER}-${HOSTNAME}-${target_name}"
     export jenkins_test_custom_configure="${jenkins_test_custom_configure} ${target_option}"
     export jenkins_target="${target_name}"
     set +x
