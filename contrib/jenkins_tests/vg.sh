@@ -21,11 +21,11 @@ rc=$?
 
 
 test_ip_list=""
-#if [ ! -z $(do_get_ip 'ib' 'mlx5') ]; then
-#	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib' 'mlx5')"
+#if [ ! -z $(do_get_ip 'ib') ]; then
+#	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib')"
 #fi
-if [ ! -z "$(do_get_ip 'eth' 'mlx5')" ]; then
-	test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth' 'mlx5')"
+if [ ! -z "$(do_get_ip 'eth')" ]; then
+	test_ip_list="${test_ip_list} eth_ip4:$(do_get_ip 'eth')"
 fi
 test_list="tcp:--tcp udp:"
 test_lib=${vg_dir}/install/lib/${prj_lib}
@@ -41,7 +41,7 @@ if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
 
 		./autogen.sh
 		./configure --prefix=$PWD/install CPPFLAGS="-I${install_dir}/include"
-		make install
+		make $make_opt install
 		test_app_path="$PWD/install/bin/sockperf"
 
 		cd $vg_dir

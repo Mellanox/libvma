@@ -13,7 +13,7 @@ if [ $(command -v ${tool_app} >/dev/null 2>&1 || echo $?) ]; then
     if [ $? -eq 0 ]; then
         eval "cd cppcheck && checkout 2.1 " > /dev/null 2>&1
         if [ $? -eq 0 ]; then
-            eval "make -j FILESDIR=$PWD HAVE_RULES=yes " > /dev/null 2>&1
+            eval "make $make_opt FILESDIR=$PWD HAVE_RULES=yes " > /dev/null 2>&1
             if [ $? -eq 0 ]; then
                 tool_app=$PWD/cppcheck
             fi

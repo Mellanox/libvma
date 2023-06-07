@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HOST=$(hostname)
+HOST=${HOSTNAME}
 
 server_success_msgs="'Test end', 'interrupted by', 'exit'"
 server_failure_msgs="'Segmentation fault', 'Assertion', 'ERROR'"
