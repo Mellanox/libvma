@@ -466,7 +466,9 @@ int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num
 					p_socket_object->free_buffs(packets[i].total_len);
 				}
 				if (rng) {
-					rng->reclaim_recv_buffers(desc);
+					if (!rng->reclaim_recv_buffers(desc)) {
+					    g_buffer_pool_rx->put_buffers_thread_safe(desc);
+					}
 				} else {
 					goto err;
 				}
