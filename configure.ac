@@ -14,7 +14,7 @@ dnl===-----------------------------------------------------------------------===
 #
 define([prj_ver_major], 9)
 define([prj_ver_minor], 8)
-define([prj_ver_revision], 30)
+define([prj_ver_revision], 31)
 define([prj_ver_release], esyscmd([echo ${PRJ_RELEASE:=0}]))
 
 
