@@ -1566,7 +1566,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                     pbuf_realloc(next->p, next->len);
                   }
                   /* check if the remote side overruns our receive window */
-                  if ((u32_t)in_data->tcplen + in_data->seqno > pcb->rcv_nxt + (u32_t)pcb->rcv_wnd) {
+                  if (TCP_SEQ_GT(in_data->seqno + in_data->tcplen, pcb->rcv_nxt + pcb->rcv_wnd)) {
                     LWIP_DEBUGF(TCP_INPUT_DEBUG, 
                                 ("tcp_receive: other end overran receive window"
                                  "seqno %"U32_F" len %"U16_F" right edge %"U32_F"\n",
