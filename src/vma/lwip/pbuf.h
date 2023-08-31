@@ -118,8 +118,8 @@ struct pbuf_custom {
 /* Initializes the pbuf module. This call is empty for now, but may not be in future. */
 #define pbuf_init()
 
-void pbuf_realloc(struct pbuf *p, u16_t size); 
-u8_t pbuf_header(struct pbuf *p, s16_t header_size);
+void pbuf_realloc(struct pbuf *p, u32_t size);
+u8_t pbuf_header(struct pbuf *p, s32_t header_size);
 void pbuf_ref(struct pbuf *p);
 u8_t pbuf_free(struct pbuf *p);
 u8_t pbuf_clen(struct pbuf *p);  
