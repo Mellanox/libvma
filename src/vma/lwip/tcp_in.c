@@ -113,7 +113,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 
 
     /* remove header from payload */
-    if (pbuf_header(p, -((s16_t)(IPH_HL(in_data.iphdr) * 4))) || (p->tot_len < sizeof(struct tcp_hdr))) {
+    if (pbuf_header(p, -((s32_t)(IPH_HL(in_data.iphdr) * 4))) || (p->tot_len < sizeof(struct tcp_hdr))) {
         /* drop short packets */
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: short packet (%"U16_F" bytes) discarded\n", (u16_t)p->tot_len));
         TCP_STATS_INC(tcp.lenerr);
@@ -761,7 +761,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
   s32_t off;
   s16_t m;
   u32_t right_wnd_edge;
-  u16_t new_tot_len;
+  u32_t new_tot_len;
   int found_dupack = 0;
 
   if (in_data->flags & TCP_ACK) {
@@ -1086,33 +1086,28 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       off = pcb->rcv_nxt - in_data->seqno;
       p = in_data->inseg.p;
       LWIP_ASSERT("inseg.p != NULL", in_data->inseg.p);
-      LWIP_ASSERT("insane offset!", (off < 0x7fff));
       if (in_data->inseg.p->len < off) {
         LWIP_ASSERT("pbuf too short!", (((s32_t)in_data->inseg.p->tot_len) >= off));
-        new_tot_len = (u16_t)(in_data->inseg.p->tot_len - off);
+        new_tot_len = in_data->inseg.p->tot_len - off;
         while (p->len < off) {
           off -= p->len;
-          /* KJM following line changed (with addition of new_tot_len var)
-             to fix bug #9076
-             inseg.p->tot_len -= p->len; */
           p->tot_len = new_tot_len;
           p->len = 0;
           p = p->next;
         }
-        if(pbuf_header(p, (s16_t)-off)) {
+        if(pbuf_header(p, -off)) {
           /* Do we need to cope with this failing?  Assert for now */
           LWIP_ASSERT("pbuf_header failed", 0);
         }
       } else {
-        if(pbuf_header(in_data->inseg.p, (s16_t)-off)) {
+        if(pbuf_header(in_data->inseg.p, -off)) {
           /* Do we need to cope with this failing?  Assert for now */
           LWIP_ASSERT("pbuf_header failed", 0);
         }
       }
-      /* KJM following line changed to use p->payload rather than inseg->p->payload
-         to fix bug #9076 */
+
       in_data->inseg.dataptr = p->payload;
-      in_data->inseg.len -= (u16_t)(pcb->rcv_nxt - in_data->seqno);
+      in_data->inseg.len -= pcb->rcv_nxt - in_data->seqno;
       in_data->inseg.tcphdr->seqno = in_data->seqno = pcb->rcv_nxt;
     }
     else {
