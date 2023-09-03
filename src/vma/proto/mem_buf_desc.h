@@ -132,6 +132,7 @@ public:
 
 	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
 	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
+	inline void set_ref_count(int x) {atomic_set(&n_ref_count, x);}
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
