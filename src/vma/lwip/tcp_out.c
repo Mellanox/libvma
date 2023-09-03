@@ -1209,7 +1209,7 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     }
 
     cur_p->len += optlen;
-    cur_p->tot_len = cur_p->len;
+    cur_p->tot_len += optlen;
     cur_p->payload = (u8_t *)cur_p->payload - optlen;
 
     /* Fill in tcp_seg (allocation was done before).
@@ -1220,6 +1220,9 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       if (cur_seg->len > pcb->mss) {
         cur_seg->flags |= TF_SEG_OPTS_TSO;
       }
+      cur_p->len -= optlen;
+      cur_p->tot_len -= optlen;
+      cur_p->payload = (u8_t *)cur_p->payload + optlen;
       return seg;
     }
 
