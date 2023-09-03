@@ -158,7 +158,8 @@ public:
 	/* This function is used for socketxtreme mode */
 	virtual int free_buffs(uint16_t len);
 
-	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
+	inline struct tcp_pcb *get_pcb(void) { return &m_pcb; }	
 
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,
 	//in state "SYN Received" or NULL if pcb wasn't found
