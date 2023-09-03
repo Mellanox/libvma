@@ -1541,7 +1541,15 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	pbuf *p_curr_buff = p;
 	conn->m_connected.get_sa(p_first_desc->rx.src);
 
+	// To avoid reset ref count for first mem_buf_desc, save it and set after the while
+	int head_ref = p_first_desc->get_ref_count();
 	while (p_curr_buff) {
+		/* Here we reset ref count for all mem_buf_desc except for the head (p_first_desc).
+		Chain of pbufs can contain some pbufs with ref count >=1 like in ooo or flow tag flows.
+		While processing Rx packets we may split buffer chains and we increment ref count
+		for the new head of the chain after the split. It will cause a wrong ref count,
+		and the buffer won't be reclaimed. Resetting it here will migitate the issue. */
+		p_curr_desc->reset_ref_count();
 #ifdef DEFINED_VMAPOLL		
 		p_curr_desc->rx.context = conn;
 #endif // DEFINED_VMAPOLL				
@@ -1552,6 +1560,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		p_curr_buff = p_curr_buff->next;
 		p_curr_desc = p_curr_desc->p_next_desc;
 	}
+	p_first_desc->set_ref_count(head_ref);
 		
 	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	
