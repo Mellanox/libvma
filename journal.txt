@@ -1,3 +1,12 @@
+Version 8.4.104-0:
+Date + Time 2023-09-04
+=============================================================
+Fixed:
+        - RM #3591039 Fix lwip seqno wrap around condition
+        - RM #3591039 Fix ref count for mem_buf chains
+        - RM #3591039 Fix type overflow during trimming TCP seg
+        - RM #3591039 Fix GRO retransmitted TCP stream
+
 Version 8.4.101-0:
 Date + Time 2018-02-05
 =============================================================
