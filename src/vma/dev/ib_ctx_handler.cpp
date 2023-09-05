@@ -72,10 +72,6 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	}
 
 	m_p_ibv_context = NULL;
-#ifdef DEFINED_DPCP
-	m_p_adapter = set_dpcp_adapter();
-	if (NULL == m_p_adapter)
-#endif /* DEFINED_DPCP */
 	{
 #if defined(DEFINED_ROCE_LAG)
 		struct mlx5dv_context_attr dv_attr;
@@ -135,12 +131,6 @@ err:
 		ibv_dealloc_pd(m_p_ibv_pd);
 	}
 
-#ifdef DEFINED_DPCP
-	if (m_p_adapter) {
-		delete m_p_adapter;
-		m_p_ibv_context = NULL;
-	}
-#endif /* DEFINED_DPCP */
 	if (m_p_ibv_context) {
 		ibv_close_device(m_p_ibv_context);
 		m_p_ibv_context = NULL;
@@ -174,12 +164,6 @@ ib_ctx_handler::~ib_ctx_handler()
 	}
 	delete m_p_ibv_device_attr;
 
-#ifdef DEFINED_DPCP
-	if (m_p_adapter) {
-		delete m_p_adapter;
-		m_p_ibv_context = NULL;
-	}
-#endif /* DEFINED_DPCP */
 	if (m_p_ibv_context) {
 		ibv_close_device(m_p_ibv_context);
 		m_p_ibv_context = NULL;
@@ -228,113 +212,6 @@ void ib_ctx_handler::print_val()
 	set_str();
 	ibch_logdbg("%s", m_str);
 }
-
-#ifdef DEFINED_DPCP
-dpcp::adapter* ib_ctx_handler::set_dpcp_adapter()
-{
-	dpcp::status status = dpcp::DPCP_ERR_NO_SUPPORT;
-	dpcp::provider *p_provider = NULL;
-	dpcp::adapter_info* dpcp_lst = NULL;
-	size_t adapters_num = 0;
-	size_t i = 0;
-
-	m_p_adapter = NULL;
-	if (!m_p_ibv_device) {
-		return NULL;
-	}
-
-	status = dpcp::provider::get_instance(p_provider);
-	if (dpcp::DPCP_OK != status) {
-		ibch_logerr("failed getting provider status = %d", status);
-		goto err;
-	}
-
-	status = p_provider->get_adapter_info_lst(NULL, adapters_num);
-	if (0 == adapters_num) {
-		ibch_logdbg("found no adapters status = %d", status);
-		goto err;
-	}
-
-	dpcp_lst = new (std::nothrow)dpcp::adapter_info[adapters_num];
-	if (!dpcp_lst) {
-		ibch_logerr("failed allocating memory for devices");
-		goto err;
-	}
-
-	status = p_provider->get_adapter_info_lst(dpcp_lst, adapters_num);
-	if (dpcp::DPCP_OK != status) {
-		ibch_logerr("failed getting adapter list");
-		goto err;
-	}
-
-	for (i = 0; i < adapters_num; i++) {
-		if (dpcp_lst[i].name == m_p_ibv_device->name) {
-			dpcp::adapter *adapter = NULL;
-
-			status = p_provider->open_adapter(dpcp_lst[i].name, adapter);
-			if ((dpcp::DPCP_OK == status) && (adapter)) {
-				int ret = 0;
-				struct ibv_context *ctx = NULL;
-				struct ibv_pd *pd = NULL;
-				mlx5dv_obj mlx5_obj;
-
-				ctx = (ibv_context*)adapter->get_ibv_context();
-				if (!ctx) {
-					ibch_logerr("failed getting context for adapter %p (errno=%d %m) ",
-						    adapter, errno);
-					delete adapter;
-					goto err;
-				}
-
-				pd = ibv_alloc_pd(ctx);
-				if (!pd) {
-					ibch_logerr("failed pd allocation for %p context (errno=%d %m) ",
-						    ctx, errno);
-					delete adapter;
-					goto err;
-				}
-
-				mlx5_obj.pd.in = pd;
-				mlx5dv_pd out_pd;
-				mlx5_obj.pd.out = &out_pd;
-
-				ret = vma_ib_mlx5dv_init_obj(&mlx5_obj, MLX5DV_OBJ_PD);
-				if (ret) {
-					ibch_logerr("failed getting mlx5_pd for %p (errno=%d %m) ",
-						    m_p_ibv_pd, errno);
-					ibv_dealloc_pd(pd);
-					delete adapter;
-					goto err;
-				}
-
-				adapter->set_pd(out_pd.pdn, pd);
-				status = adapter->open();
-				if (dpcp::DPCP_OK != status) {
-					ibch_logerr("failed opening dpcp adapter %s got %d",
-						    adapter->get_name().c_str(), status);
-					ibv_dealloc_pd(pd);
-					delete adapter;
-					goto err;
-				}
-
-				m_p_adapter = adapter;
-				m_p_ibv_context = ctx;
-				m_p_ibv_pd = pd;
-				ibch_logdbg("dpcp adapter: %s is up", adapter->get_name().c_str());
-			}
-
-			break;
-		}
-	}
-
-err:
-	if (dpcp_lst) {
-		delete[] dpcp_lst;
-	}
-
-	return m_p_adapter;
-}
-#endif /* DEFINED_DPCP */
 
 void ib_ctx_handler::set_ctx_time_converter_status(ts_conversion_mode_t conversion_mode)
 {

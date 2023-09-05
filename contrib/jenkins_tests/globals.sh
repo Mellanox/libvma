@@ -278,55 +278,6 @@ do_version_check()
     }'
 }
 
-do_check_dpcp()
-{
-    local ret=0
-    local version=$(echo "${jenkins_ofed}" | cut -f1-2 -d.)
-
-    if do_version_check $version '<' '5.2' ; then
-        return
-    fi
-    echo "Checking dpcp usage"
-
-    ret=0
-    pushd $(pwd) > /dev/null 2>&1
-    dpcp_dir=${WORKSPACE}/${prefix}/_dpcp-last
-    mkdir -p ${dpcp_dir} > /dev/null 2>&1
-    cd ${dpcp_dir}
-
-    set +e
-    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
-		branch=${main:-ghprbTargetBranch}
-		eval "timeout -s SIGKILL 30s git clone --branch $branch git@github.com:Mellanox/dpcp.git . " > /dev/null 2>&1
-        ret=$?
-    fi
-
-    if [ $ret -eq 0 ]; then
-        last_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        if [ -z "$last_tag" ]; then
-            ret=1
-        fi
-    fi
-
-    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
-        eval "git checkout $last_tag" > /dev/null 2>&1
-        ret=$?
-    fi
-
-    if [ ! -d ${dpcp_dir}/install -a $ret -eq 0 ]; then
-        eval "./autogen.sh && ./configure --prefix=${dpcp_dir}/install && make $make_opt install" > /dev/null 2>&1
-        ret=$?
-    fi
-    set -e
-
-    popd > /dev/null 2>&1
-    if [ $ret -eq 0 ]; then
-        eval "$1=${dpcp_dir}/install"
-        echo "dpcp: $last_tag : ${dpcp_dir}/install"
-    else
-        echo "dpcp: no"
-    fi
-}
 
 #######################################################
 #

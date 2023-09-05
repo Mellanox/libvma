@@ -104,15 +104,6 @@ if [ "$TARGET" == "all" -o "$TARGET" == "extra" ]; then
     target_list[$i]="extra: --enable-tso"
     i=$((i+1))
 fi
-if [ "$TARGET" == "all" -o "$TARGET" == "dpcp" ]; then
-    do_check_dpcp opt_value
-    if [ ! -z "${opt_value}" ]; then
-        target_list[$i]="dpcp: --enable-tso --enable-nginx --with-dpcp=${opt_value}"
-        i=$((i+1))
-    else
-        echo "Requested dpcp support can not be executed"
-    fi
-fi
 
 echo
 echo "======================================================"
