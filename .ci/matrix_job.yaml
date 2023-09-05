@@ -50,7 +50,6 @@ matrix:
     flags:
       - default
       - extra
-      - dpcp
     arch:
       - x86_64
       - aarch64

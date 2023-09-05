@@ -84,7 +84,6 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 m4_include([config/m4/func.m4])
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/verbs.m4])
-m4_include([config/m4/dpcp.m4])
 m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
 m4_include([config/m4/compiler.m4])
@@ -216,7 +215,6 @@ AC_MSG_RESULT($ac_cv_ofed_path)
 VERBS_CAPABILITY_SETUP()
 OPT_VMA_LOGGING()
 PROF_IBPROF_SETUP()
-DPCP_CAPABILITY_SETUP()
 
 # Enable internal performance counters
 # Note: uncomment setup to activate this ability

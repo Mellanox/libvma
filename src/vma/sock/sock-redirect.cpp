@@ -756,47 +756,6 @@ int vma_dereg_mr_on_ring(int __fd, void *addr, size_t length)
 	}
 }
 
-extern "C"
-int vma_get_dpcp_devices(uintptr_t **devices, size_t *devices_num)
-{
-#ifdef DEFINED_DPCP
-	ib_context_map_t *ib_ctx_map = NULL;
-	ib_ctx_handler *p_ib_ctx_h = NULL;
-	size_t found_devs = 0;
-
-	if (!devices_num) {
-		return EINVAL;
-	}
-
-	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
-	if (ib_ctx_map) {
-		ib_context_map_t::iterator iter;
-
-		for (iter = ib_ctx_map->begin(); iter != ib_ctx_map->end(); iter++) {
-			p_ib_ctx_h = iter->second;
-			if (p_ib_ctx_h->get_dpcp_adapter()) {
-				if (devices && (found_devs < *devices_num)) {
-					devices[found_devs] = (uintptr_t*)p_ib_ctx_h->get_dpcp_adapter();
-				}
-				found_devs++;
-			}
-		}
-	}
-
-	*devices_num = found_devs;
-	srdr_logdbg_entry("returned %zd devices", found_devs);
-
-	return 0;
-#else
-	NOT_IN_USE(devices);
-	NOT_IN_USE(devices_num);
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"vma_get_dpcp_devices is no supported");
-	errno = EOPNOTSUPP;
-	return -1;
-#endif /* DEFINED_DPCP */
-}
-
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -1133,7 +1092,6 @@ int getsockopt(int __fd, int __level, int __optname,
 		SET_EXTRA_API(socketxtreme_free_vma_buff, enable_socketxtreme ? vma_socketxtreme_free_vma_buff : dummy_vma_socketxtreme_free_vma_buff, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF);
 		SET_EXTRA_API(dump_fd_stats, vma_dump_fd_stats, VMA_EXTRA_API_DUMP_FD_STATS);
 		SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
-		SET_EXTRA_API(get_dpcp_devices, vma_get_dpcp_devices, VMA_EXTRA_API_GET_DPCP_DEVICES);
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

@@ -51,7 +51,7 @@ AM_CPPFLAGS := \
 libvma_la_LDFLAGS := -no-undefined -version-number @PRJ_LIBRARY_MAJOR@:@PRJ_LIBRARY_MINOR@:@PRJ_LIBRARY_REVISION@ 
 
 libvma_la_LIBADD = \
-	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) $(DPCP_LIBS) \
+	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) \
 	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
