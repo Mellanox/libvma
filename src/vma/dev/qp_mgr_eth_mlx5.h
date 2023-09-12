@@ -66,6 +66,8 @@ protected:
 	void		trigger_completion_for_all_sent_packets();
 	void		init_sq();
 
+	virtual bool is_rq_empty() const { return (m_mlx5_qp.rq.head == m_mlx5_qp.rq.tail); }
+
 	uint64_t*   m_sq_wqe_idx_to_wrid;
 	uint64_t    m_rq_wqe_counter;
 private:

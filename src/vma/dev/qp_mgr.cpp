@@ -412,7 +412,8 @@ void qp_mgr::release_rx_buffers()
 	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %lu)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
 	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
-			errno != EIO && !m_p_ib_ctx_handler->is_removed()) {
+			errno != EIO && !m_p_ib_ctx_handler->is_removed() &&
+			!is_rq_empty()) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
