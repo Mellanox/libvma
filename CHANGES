@@ -1,3 +1,17 @@
+Version 9.8.40-1:
+Date + Time 2023-09-12
+=============================================================
+Removed:
+        - RM #3593939 DPCP dependency
+
+Fixed:
+        - RM #3591039 Wrong lwip seqno wrap around condition
+        - RM #3591039 Type overflow during trimming TCP seg
+        - RM #3591039 Ref count for mem_buf chains
+        - RM #3591039 GRO retransmitted TCP stream
+        - RM #3591039 Incorrect pbuf chain split
+        - RM #3604175 Fixing stuck empty rx ring cleanup
+
 Version 9.8.31-1:
 Date + Time 2023-07-10
 =============================================================
