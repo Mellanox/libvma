@@ -817,11 +817,7 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 		BULLSEYE_EXCLUDE_BLOCK_START
 		unlock_rx_q();
 		resource_allocation_key *key;
-		if (m_ring_alloc_logic.is_logic_support_migration()) {
-			key = m_ring_alloc_logic.get_key();
-		} else {
-			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
-		}
+		key = m_ring_alloc_logic.get_key();
 		if (p_nd_resources->p_ndv->release_ring(key) < 0) {
 			lock_rx_q();
 			si_logerr("Failed to release ring for allocation key %s on ip %s",
