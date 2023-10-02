@@ -747,7 +747,11 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		unlock_rx_q();
 		m_rx_ring_map_lock.lock();
 		resource_allocation_key *key;
-		if (m_rx_ring_map.size() && m_ring_alloc_logic.is_logic_support_migration()) {
+		/* Sockinfo object can use few different rx rings but all these rings should
+		 * have the same key and identical ring allocation logic otherwise
+		 * corruption happens during ring releasing
+		 */
+		if (m_rx_ring_map.size()) {
 			key = m_ring_alloc_logic.get_key();
 		} else {
 			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
