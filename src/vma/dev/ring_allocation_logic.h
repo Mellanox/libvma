@@ -81,6 +81,7 @@ public:
 	bool			should_migrate_ring();
 	bool			is_logic_support_migration() { return m_res_key.get_ring_alloc_logic() >= RING_LOGIC_PER_THREAD && m_ring_migration_ratio > 0;}
 	uint64_t		calc_res_key_by_logic();
+	inline ring_logic_t get_alloc_logic_type() { return m_res_key.get_ring_alloc_logic(); }
 	inline void		enable_migration(bool active) { m_active = active; }
 	const char*		to_str();
 

@@ -750,8 +750,10 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		/* Sockinfo object can use few different rx rings but all these rings should
 		 * have the same key and identical ring allocation logic otherwise
 		 * corruption happens during ring releasing
+		 * Exception: RING_LOGIC_PER_IP - different ip generate different keys
 		 */
-		if (m_rx_ring_map.size()) {
+		if (m_rx_ring_map.size() &&
+			(m_ring_alloc_logic.get_alloc_logic_type() != RING_LOGIC_PER_IP)) {
 			key = m_ring_alloc_logic.get_key();
 		} else {
 			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
@@ -821,7 +823,11 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 		BULLSEYE_EXCLUDE_BLOCK_START
 		unlock_rx_q();
 		resource_allocation_key *key;
-		key = m_ring_alloc_logic.get_key();
+		if (m_ring_alloc_logic.get_alloc_logic_type() != RING_LOGIC_PER_IP) {
+			key = m_ring_alloc_logic.get_key();
+		} else {
+			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
+		}
 		if (p_nd_resources->p_ndv->release_ring(key) < 0) {
 			lock_rx_q();
 			si_logerr("Failed to release ring for allocation key %s on ip %s",
