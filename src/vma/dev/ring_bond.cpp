@@ -919,9 +919,8 @@ void ring_bond_eth::slave_create(int if_index)
 void ring_bond_ib::slave_create(int if_index)
 {
 	ring_slave *cur_slave;
-	ring_simple *cur_simple;
 
-	cur_slave = cur_simple = new ring_ib(if_index, this);
+	cur_slave = new ring_ib(if_index, this);
 	if (cur_slave == NULL) {
 		ring_logpanic("Error creating bond ring: memory allocation error");
 	}
