@@ -432,6 +432,7 @@ void qp_mgr::release_rx_buffers()
 	}
 	m_last_posted_rx_wr_id = 0; // Clear the posted WR_ID flag, we just clear the entire RQ
 	qp_logdbg("draining completed with a total of %d wce's on rx cq_mgr", total_ret);
+	NOT_IN_USE(total_ret); // Suppress --enable-opt-log=high warning
 }
 
 void qp_mgr::release_tx_buffers()

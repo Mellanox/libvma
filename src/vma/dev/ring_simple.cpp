@@ -876,6 +876,7 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 		buff_list = next;
 	}
 	ring_logfunc("buf_list: %p count: %d freed: %d\n", buff_list, count, freed);
+	NOT_IN_USE(freed); // Suppress unused-but-set-variable warning
 
 	return_to_global_pool();
 

@@ -1520,6 +1520,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 	m_rx_ring_map_lock.unlock();
 
 	si_udp_logfunc("armed or busy %d ring(s) and %d ring are pending processing", ring_armed_count, ring_ready_count);
+	NOT_IN_USE(ring_armed_count); // Suppress unused-but-set-variable warning
 	return ring_ready_count;
 }
 
