@@ -547,6 +547,8 @@ s32_t            tcp_is_wnd_available(struct tcp_pcb *pcb, u32_t data_len);
 #define get_tcp_state(pcb) ((pcb)->private_state)
 #define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)
 
+void tcp_set_keepalive(struct tcp_pcb *pcb, u32_t idle, u32_t intvl, u32_t cnt);
+
 #ifdef __cplusplus
 }
 #endif
