@@ -105,6 +105,11 @@ static bool is_inherited_option(int __level, int __optname)
 		switch (__optname) {
 		case TCP_MAXSEG:
 		case TCP_NODELAY:
+		case TCP_KEEPIDLE:
+#if LWIP_TCP_KEEPALIVE
+		case TCP_KEEPINTVL:
+		case TCP_KEEPCNT:
+#endif
 			ret = true;
 		}
 	} else if (__level == IPPROTO_IP) {
@@ -256,6 +261,12 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	si_tcp_logdbg("tcp socket created");
 
 	tcp_pcb_init(&m_pcb, TCP_PRIO_NORMAL);
+
+	const tcp_keepalive_info keepalive_info =
+		safe_mce_sys().sysctl_reader.get_tcp_keepalive_info();
+	tcp_set_keepalive(&m_pcb, static_cast<u32_t>(1000U * keepalive_info.idle_secs),
+					  static_cast<u32_t>(1000U * keepalive_info.interval_secs),
+					  static_cast<u32_t>(keepalive_info.num_probes));
 
 	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, get_tcp_state(&m_pcb));
 	tcp_arg(&m_pcb, this);
@@ -3681,6 +3692,41 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			unlock_tcp_con();
 			si_tcp_logdbg("(TCP_QUICKACK) value: %d", val);
 			break;
+		case TCP_KEEPIDLE: {
+			auto *int_ptr =  reinterpret_cast<const int *>(__optval);
+			if (__optlen < sizeof(int) || *int_ptr <= 0) {
+				errno = EINVAL;
+				ret = -1;
+			} else {
+				auto idle_sec = static_cast<unsigned int>(*int_ptr);
+				si_tcp_logdbg("TCP_KEEPIDLE value: %us", idle_sec);
+				m_pcb.keep_idle = idle_sec * 1000U;
+			}
+		} break;
+#if LWIP_TCP_KEEPALIVE
+		case TCP_KEEPINTVL: {
+			auto *int_ptr =  reinterpret_cast<const int *>(__optval);
+			if (__optlen < sizeof(int) || *int_ptr <= 0) {
+				errno = EINVAL;
+				ret = -1;
+			} else {
+				auto keep_intvl = static_cast<unsigned int>(*int_ptr);
+				si_tcp_logdbg("TCP_KEEPINTVL value: %us", keep_intvl);
+				m_pcb.keep_intvl = keep_intvl * 1000U;
+			}
+		} break;
+		case TCP_KEEPCNT: {
+			auto *int_ptr =  reinterpret_cast<const int *>(__optval);
+			if (__optlen < sizeof(int) || *int_ptr <= 0) {
+				errno = EINVAL;
+				ret = -1;
+			} else {
+				auto keep_cnt = static_cast<unsigned int>(*int_ptr);
+				si_tcp_logdbg("TCP_KEEPCNT value: %u", keep_cnt);
+				m_pcb.keep_cnt = keep_cnt;
+			}
+		} break;
+#endif /* LWIP_TCP_KEEPALIVE */
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			supported = false;
@@ -3890,6 +3936,38 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 				errno = EINVAL;
 			}
 			break;
+		case TCP_KEEPIDLE:
+			if (*__optlen >= sizeof(unsigned int)) {
+				*(unsigned int *)__optval = m_pcb.keep_idle / 1000;
+				*__optlen = sizeof(unsigned int);
+				si_tcp_logdbg("TCP_KEEPIDLE value: %us", m_pcb.keep_idle / 1000);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+#if LWIP_TCP_KEEPALIVE
+		case TCP_KEEPINTVL:
+			if (*__optlen >= sizeof(unsigned int)) {
+				*(unsigned int *)__optval = m_pcb.keep_intvl / 1000;
+				*__optlen = sizeof(unsigned int);
+				si_tcp_logdbg("TCP_KEEPINTVL value: %us", m_pcb.keep_intvl / 1000);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case TCP_KEEPCNT:
+			if (*__optlen >= sizeof(unsigned int)) {
+				*(unsigned int *)__optval = m_pcb.keep_cnt;
+				*__optlen = sizeof(unsigned int);
+				si_tcp_logdbg("TCP_KEEPCNT value: %us", m_pcb.keep_cnt);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+#endif /* LWIP_TCP_KEEPALIVE */
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;

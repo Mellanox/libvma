@@ -48,6 +48,8 @@ eval "${sudo_cmd} ${install_dir}/sbin/${prj_service} --console -v5 &"
 # Exclude VMA EXTRA API tests
 eval "${sudo_cmd} $timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=-vma_*:tcp_send_zc* --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml"
 rc=$(($rc+$?))
+eval "${sudo_cmd} $timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=keep_alive* --gtest_output=xml:${WORKSPACE}/${prefix}/test-keepalive.xml"
+rc=$(($rc+$?))
 
 make -C tests/gtest clean
 make -C tests/gtest CPPFLAGS="-DEXTRA_API_ENABLED=1"

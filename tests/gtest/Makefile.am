@@ -104,6 +104,7 @@ gtest_SOURCES = \
 	tcp/tcp_sendfile.cc \
 	tcp/tcp_send_zc.cc \
 	tcp/tcp_tls.cc \
+	tcp/tcp_sockopt.cc \
 	\
 	udp/udp_base.cc \
 	udp/udp_bind.cc \

@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <sys/resource.h>
 #include <string.h>
+#include <fstream>
 #include <iostream>
 #include "vma/util/if.h"
 #include <sys/stat.h>
@@ -437,12 +438,13 @@ int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_l
 
 int read_file_to_int(const char *path, int default_value)
 {
-	char buf[25];
-	int rc = priv_safe_read_file(path, buf, sizeof buf);
-	if (rc < 0) {
+	int value = -1;
+	std::ifstream file_stream(path);
+	if (!file_stream || !(file_stream >> value)) {
 		__log_warn("ERROR while getting int from from file %s, we'll use default %d", path, default_value);
+		return default_value;
 	}
-	return (rc < 0) ? default_value : atoi(buf);
+	return value;
 }
 
 int get_ifinfo_from_ip(const struct sockaddr& addr, char* ifname, uint32_t& ifflags)
