@@ -43,6 +43,12 @@ struct sysctl_tcp_mem {
 	int max_value;
 };
 
+struct tcp_keepalive_info {
+	int idle_secs;
+	int interval_secs;
+	int num_probes;
+};
+
 class sysctl_reader_t {
 
 private:
@@ -97,6 +103,7 @@ public :
 		get_net_ipv4_ttl(true);
 		get_igmp_max_membership(true);
 		get_igmp_max_source_membership(true);
+		get_tcp_keepalive_info(true);
 	}
 
 	int get_tcp_max_syn_backlog(bool update = false) {
@@ -138,6 +145,24 @@ public :
 			}
 		}
 		return &tcp_mem;
+	}
+
+	const tcp_keepalive_info get_tcp_keepalive_info(bool update = false)
+	{
+		static tcp_keepalive_info val = {7200, 75, 9};
+		auto read_file_to_positive_int = [](const char *path, int default_value) {
+			int ret = read_file_to_int(path, default_value);
+			return ret > 0 ? ret : default_value;
+		};
+		if (update) {
+			val.idle_secs =
+				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_time", val.idle_secs);
+			val.interval_secs =
+				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_intvl", val.interval_secs);
+			val.num_probes =
+				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_probes", val.num_probes);
+		}
+		return val;
 	}
 
 	int get_tcp_window_scaling(bool update = false) {

@@ -1396,6 +1396,18 @@ tcp_mss_follow_mtu_with_default(u16_t defsendmss, struct tcp_pcb *pcb)
 }
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
+void tcp_set_keepalive(struct tcp_pcb *pcb, u32_t idle, u32_t intvl, u32_t cnt)
+{
+	pcb->keep_idle = idle;
+#if LWIP_TCP_KEEPALIVE
+	pcb->keep_intvl = intvl;
+	pcb->keep_cnt = cnt;
+#else
+	(void)intvl;
+	(void)cnt;
+#endif /* LWIP_TCP_KEEPALIVE */
+}
+
 #if TCP_DEBUG || TCP_INPUT_DEBUG || TCP_OUTPUT_DEBUG
 /**
  * Print a tcp header for debugging purposes.

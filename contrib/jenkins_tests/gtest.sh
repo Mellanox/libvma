@@ -37,7 +37,6 @@ make -C tests/gtest
 
 eval "sudo pkill -9 vmad"
 eval "sudo ${install_dir}/sbin/vmad --console -v5 &"
-
 eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt"
 rc=$(($rc+$?))
 

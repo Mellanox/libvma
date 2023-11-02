@@ -37,9 +37,10 @@ extern struct gtest_configure_t gtest_conf;
 
 #define log_fatal(fmt, ...) \
 	do {                                                       \
-		if (gtest_conf.log_level > 0)                             \
+		if (gtest_conf.log_level > 0) {                           \
 			fprintf(stderr, "[    FATAL ] " fmt, ##__VA_ARGS__);    \
-			exit(1);    \
+		}               \
+		exit(1);    \
 	} while (0)
 
 #define log_error(fmt, ...) \
