@@ -279,7 +279,6 @@ private:
 
 	void *m_timer_handle;
 	lock_spin_recursive m_tcp_con_lock;
-	bool m_timer_pending;
 
 	bool report_connected; //used for reporting 'connected' on second non-blocking call to connect.
 
@@ -287,7 +286,6 @@ private:
 
 	const buffer_batching_mode_t m_sysvar_buffer_batching_mode;
 	const tcp_ctl_thread_t m_sysvar_tcp_ctl_thread;
-	const internal_thread_tcp_timer_handling_t m_sysvar_internal_thread_tcp_timer_handling;
 
 	struct tcp_seg * m_tcp_seg_list;
 	int m_tcp_seg_count;
