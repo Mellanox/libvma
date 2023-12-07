@@ -1199,23 +1199,19 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 	}
 
 	if (conn->m_parent != NULL) {
-		//in case we got RST before we accepted the connection
-		int delete_fd = 0;
-		sockinfo_tcp *parent = conn->m_parent;
-		bool locked_by_me = false;
-		if (conn->m_tcp_con_lock.is_locked_by_me()) {
-			locked_by_me = true;
-			conn->unlock_tcp_con();
-		}
-		if ((delete_fd = parent->handle_child_FIN(conn))) {
-			//close will clean sockinfo_tcp object and the opened OS socket
+		//in case we got RST or abandon() before we accepted the connection
+		conn->unlock_tcp_con();
+		int delete_fd = conn->m_parent->handle_child_FIN(conn);
+		conn->lock_tcp_con();
+
+		if (delete_fd) {
+			// Object destruction is expected to happen in internal thread. Unless VMA is in late
+			// terminating stage, in which case we don't expect to handle packets.
+			// Calling close() under lock will prevent internal thread to delete the object before
+			// we finish with the current processing.
 			close(delete_fd);
-			if (locked_by_me)
-				conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
 			return;
 		}
-		if (locked_by_me)
-			conn->lock_tcp_con();
 	}
 
 	/*
@@ -1639,18 +1635,21 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		tcp_recv(&(conn->m_pcb), sockinfo_tcp::rx_drop_lwip_cb);
 
 		if (conn->m_parent != NULL) {
-			//in case we got FIN before we accepted the connection
-			int delete_fd = 0;
-			sockinfo_tcp *parent = conn->m_parent;
-			/* TODO need to add some refcount inside parent in case parent and child are closed together*/
+			// in case we got FIN before we accepted the connection
+			/* TODO need to add some refcount inside parent in case parent and child are closed
+			* together*/
 			conn->unlock_tcp_con();
-			if ((delete_fd = parent->handle_child_FIN(conn))) {
-				//close will clean sockinfo_tcp object and the opened OS socket
+			int delete_fd = conn->m_parent->handle_child_FIN(conn);
+			conn->lock_tcp_con();
+
+			if (delete_fd) {
+				// Object destruction is expected to happen in internal thread. Unless XLIO is in late
+				// terminating stage, in which case we don't expect to handle packets.
+				// Calling close() under lock will prevent internal thread to delete the object before
+				// we finish with the current processing.
 				close(delete_fd);
-				conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
 				return ERR_ABRT;
 			}
-			conn->lock_tcp_con();
 		}
 		return ERR_OK;
 	}
