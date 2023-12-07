@@ -133,10 +133,6 @@ inline void sockinfo_tcp::lock_tcp_con()
 
 inline void sockinfo_tcp::unlock_tcp_con()
 {
-	if (m_timer_pending) {
-		tcp_timer();
-	}
-
 	m_tcp_con_lock.unlock();
 }
 
@@ -162,12 +158,6 @@ inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
 
 inline int sockinfo_tcp::rx_wait_lockless(int & poll_count, bool is_blocking)
 {
-	if (m_timer_pending) {
-		m_tcp_con_lock.lock();
-		tcp_timer();
-		m_tcp_con_lock.unlock();
-	}
-
 	return rx_wait_helper(poll_count, is_blocking);
 }
 
@@ -229,10 +219,8 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 sockinfo_tcp::sockinfo_tcp(int fd):
         sockinfo(fd),
         m_timer_handle(NULL),
-        m_timer_pending(false),
         m_sysvar_buffer_batching_mode(safe_mce_sys().buffer_batching_mode),
         m_sysvar_tcp_ctl_thread(safe_mce_sys().tcp_ctl_thread),
-        m_sysvar_internal_thread_tcp_timer_handling(safe_mce_sys().internal_thread_tcp_timer_handling),
         m_sysvar_rx_poll_on_tx_tcp(safe_mce_sys().rx_poll_on_tx_tcp)
 {
 	si_tcp_logfuncall("");
@@ -627,7 +615,6 @@ void sockinfo_tcp::tcp_timer()
 	}
 
 	tcp_tmr(&m_pcb);
-	m_timer_pending = false;
 
 	return_pending_rx_buffs();
 	return_pending_tx_buffs();
@@ -1508,34 +1495,9 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
-	if (m_sysvar_internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
-		// DEFERRED. if Internal thread is here first and m_timer_pending is false it jsut 
-		// sets it as true for its next iteration (within 100ms), letting 
-		// application threads have a chance of running tcp_timer()
-		if (m_timer_pending) {
-			if (m_tcp_con_lock.trylock()) {
-				return;
-			}
-			tcp_timer();
-			m_tcp_con_lock.unlock();
-		}
-		m_timer_pending = true;
-	}
-	else { // IMMEDIATE
-		// Set the pending flag before getting the lock, so in the rare case of
-		// a race with unlock_tcp_con(), the timer will be called twice. If we set
-		// the flag after trylock(), the timer may not be called in case of a race.
-		
-		// any thread (internal or application) will try locking 
-		// and running the tcp_timer
-		m_timer_pending = true;
-		if (m_tcp_con_lock.trylock()) {
-			return;
-		}
-
-		tcp_timer();
-		m_tcp_con_lock.unlock();
-	}
+	m_tcp_con_lock.lock();
+	tcp_timer();
+	m_tcp_con_lock.unlock();
 }
 
 void sockinfo_tcp::abort_connection()

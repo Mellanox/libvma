@@ -589,7 +589,6 @@ void mce_sys_var::get_env_params()
 	offloaded_sockets	= MCE_DEFAULT_OFFLOADED_SOCKETS;
 	timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
 	tcp_timer_resolution_msec= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
-	internal_thread_tcp_timer_handling = MCE_DEFAULT_INTERNAL_THREAD_TCP_TIMER_HANDLING;
 	tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
 	tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 	tcp_nodelay		= MCE_DEFAULT_TCP_NODELAY;
@@ -1116,11 +1115,6 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMER_RESOLUTION_MSEC)) != NULL)
 		tcp_timer_resolution_msec = atoi(env_ptr);
-
-	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_TCP_TIMER_HANDLING)) != NULL) {
-		internal_thread_tcp_timer_handling =
-		atoi(env_ptr) == 1 ?  INTERNAL_THREAD_TCP_TIMER_HANDLING_IMMEDIATE : INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED;
-	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
 		tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
