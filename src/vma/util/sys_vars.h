@@ -424,6 +424,9 @@ public:
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[PATH_MAX];
 	sysctl_reader_t & sysctl_reader;
+	// Workaround for #3440429: postpone close(2) to the socket destructor, so the sockfd is closed
+	// after the rfs rule is destroyed. Otherwise, flow_tag or TCP port can be reused too early.
+	bool deferred_close;
 	bool		rx_poll_on_tx_tcp;
 	hyper_t		hypervisor;
 	bool		trigger_dummy_send_getsockname;
@@ -567,6 +570,7 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES		"VMA_TIME_MEASURE_NUM_SAMPLES"
 #define SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE		"VMA_TIME_MEASURE_DUMP_FILE"
+#define SYS_VAR_DEFERRED_CLOSE "VMA_DEFERRED_CLOSE"
 #define SYS_VAR_VMA_RX_POLL_ON_TX_TCP			"VMA_RX_POLL_ON_TX_TCP"
 #define SYS_VAR_VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME	"VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME"
 
@@ -701,6 +705,7 @@ extern mce_sys_var & safe_mce_sys();
 #endif /* DEFINED_TSO */
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
+#define MCE_DEFAULT_DEFERRED_CLOSE (false)
 
 #define MCE_ALIGNMENT					((unsigned long)63)
 #define RX_BUF_SIZE(mtu)				((mtu) + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB

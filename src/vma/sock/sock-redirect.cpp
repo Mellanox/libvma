@@ -310,9 +310,9 @@ void dbg_check_if_need_to_send_mcpkt()
 	dbg_check_if_need_to_send_mcpkt_prevent_nested_calls--;
 }
 
-void handle_close(int fd, bool cleanup, bool passthrough)
+bool handle_close(int fd, bool cleanup, bool passthrough)
 {
-	
+	bool to_close_now = true;
 	srdr_logfunc("Cleanup fd=%d", fd);
 
 	if (g_p_fd_collection) {
@@ -321,12 +321,17 @@ void handle_close(int fd, bool cleanup, bool passthrough)
 
 		if (fd_collection_get_sockfd(fd)) {
 			g_p_fd_collection->del_sockfd(fd, cleanup);
+			if (safe_mce_sys().deferred_close) {
+				to_close_now = false;
+			}
 		}
 		if (fd_collection_get_epfd(fd)) {
 			g_p_fd_collection->del_epfd(fd, cleanup);
 		}
 
 	}
+
+	return to_close_now;
 }
 
 
@@ -912,9 +917,9 @@ int close(int __fd)
 
 	srdr_logdbg_entry("fd=%d", __fd);
 
-	handle_close(__fd);
+	bool close_now = handle_close(__fd);
 
-	return orig_os_api.close(__fd);
+	return close_now ? orig_os_api.close(__fd) : 0;
 }
 
 extern "C"
