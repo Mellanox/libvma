@@ -56,6 +56,9 @@ socket_fd_api::socket_fd_api(int fd) : m_epoll_event_flags(0), m_fd(fd), m_n_sys
 
 socket_fd_api::~socket_fd_api()
 {
+	if (safe_mce_sys().deferred_close && (m_fd >= 0)) {
+		orig_os_api.close(m_fd);
+	}
 }
 
 
