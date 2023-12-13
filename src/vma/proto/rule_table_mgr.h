@@ -51,7 +51,7 @@ public:
 	
 	rule_entry* 	create_new_entry(route_rule_table_key key, const observer *obs);
 	void 	   	update_entry(rule_entry* p_ent);
-	bool	 	rule_resolve(route_rule_table_key key, std::deque<unsigned char> &table_id_list);
+	bool	 	rule_resolve(route_rule_table_key key, std::deque<uint32_t> &table_id_list);
 
 protected:
 	virtual bool	parse_enrty(nlmsghdr *nl_header, rule_val *p_val);

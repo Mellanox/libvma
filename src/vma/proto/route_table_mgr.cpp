@@ -182,7 +182,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 			if (p_val->get_gw_addr() && !p_val->get_src_addr()) {
 				route_val* p_val_dst;
 				in_addr_t in_addr = p_val->get_gw_addr();
-				unsigned char table_id = p_val->get_table_id();
+				uint32_t table_id = p_val->get_table_id();
 				if (find_route_val(in_addr, table_id, p_val_dst)) {
 					if (p_val_dst->get_src_addr()) {
 						p_val->set_src_addr(p_val_dst->get_src_addr());
@@ -318,7 +318,7 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 	}
 }
 
-bool route_table_mgr::find_route_val(in_addr_t &dst, unsigned char table_id, route_val* &p_val)
+bool route_table_mgr::find_route_val(in_addr_t &dst, uint32_t table_id, route_val* &p_val)
 {
 	ip_address dst_addr = dst;
 	rt_mgr_logfunc("dst addr '%s'", dst_addr.to_str().c_str());
@@ -357,12 +357,12 @@ bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT route_resul
 	rt_mgr_logdbg("dst addr '%s'", dst_addr.to_str().c_str());
 
 	route_val *p_val = NULL;
-	std::deque<unsigned char> table_id_list;
+	std::deque<uint32_t> table_id_list;
 	
 	g_p_rule_table_mgr->rule_resolve(key, table_id_list);
 
 	auto_unlocker lock(m_lock);
-	std::deque<unsigned char>::iterator table_id_iter = table_id_list.begin();
+	std::deque<uint32_t>::iterator table_id_iter = table_id_list.begin();
 	for (; table_id_iter != table_id_list.end(); table_id_iter++) {
 		if (find_route_val(dst, *table_id_iter, p_val)) {
 			res.p_src = p_val->get_src_addr();
@@ -392,7 +392,7 @@ void route_table_mgr::update_entry(INOUT route_entry* p_ent, bool b_register_to_
 		if (p_rr_entry && p_rr_entry->get_val(p_rr_val)) {
 			route_val* p_val = NULL;
 			in_addr_t peer_ip = p_ent->get_key().get_dst_ip();
-			unsigned char table_id;
+			uint32_t table_id;
 			for (std::deque<rule_val*>::iterator p_rule_val = p_rr_val->begin(); p_rule_val != p_rr_val->end(); p_rule_val++) {
 				table_id = (*p_rule_val)->get_table_id();
 				if (find_route_val(peer_ip, table_id, p_val)) {

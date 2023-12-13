@@ -261,7 +261,7 @@ bool rule_table_mgr::is_matching_rule(route_rule_table_key key, rule_val* p_val)
 //		key			: key object that contain information about destination.
 //		table_id_list	: list that will contain table ID for all rule that match destination info   
 // Returns true if at least one rule match destination info, false otherwise.
-bool rule_table_mgr::rule_resolve(route_rule_table_key key, std::deque<unsigned char> &table_id_list)
+bool rule_table_mgr::rule_resolve(route_rule_table_key key, std::deque<uint32_t> &table_id_list)
 {
 	rr_mgr_logdbg("dst info: '%s'", key.to_str().c_str());
 
