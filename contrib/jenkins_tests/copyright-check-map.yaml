@@ -1,0 +1,47 @@
+general:
+    exclude:
+        - "\\.git.*"
+        - "\\.ci.*"
+        - "\\.dockers.*"
+        - "build.*"
+        - "contrib/jenkins_tests.*"
+        - "contrib/valgrind.*"
+        - "contrib/xlio-bench.*"
+        - "contrib/.*\\.sh"
+        - "debian.*"
+        - ".*\\.pdf"
+        - ".*Makefile\\.am"
+        - ".*CHANGES"
+        - ".*LICENSE"
+        - ".*NOTICE"
+        - ".*README"
+        - ".*COPYING"
+        - ".*TODO"
+        - ".*license"
+        - ".*\\.md"
+        - ".*configure\\.ac"
+        - ".*Jenkinsfile"
+        - ".*\\.docx"
+        - ".*\\.txt"
+        - ".*\\.log"
+        - ".*\\.cmake"
+        - ".*\\.png"
+        - ".*\\.conf"
+        - ".*autogen\\.sh"
+        #
+        # Auto generated files
+        #
+        - ".*src/vma/config_parser.*"
+        - ".*src/vma/config_scanner\\.c"
+
+nbu-open-source:
+    include:
+        - ".*"
+    exclude:
+        - ".*src/vma/lwip/.*"
+        - ".*tests/gtest/common/tap\\.h"
+        - ".*tests/gtest/googletest/.*"
+        - ".*src/vma/util/list\\.h"
+        - ".*contrib/scripts/libvma\\.spec\\.in"
+        - ".*contrib/scripts/vma\\.service\\.in"
+        - ".*docs/man/.*\\.in"

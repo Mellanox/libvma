@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for building with gcc ..." "off"
+echo "Checking for building with gcc ..."
 
 cd $WORKSPACE
 
@@ -15,7 +15,7 @@ ln -s "${build_dir}/0/install" "${install_dir}"
 
 build_list="\
 default: \
-opt-log:--enable-opt-log=no"
+debug:--enable-opt-log=no --enable-debug"
 
 
 build_tap=${WORKSPACE}/${prefix}/build.tap
