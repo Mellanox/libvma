@@ -761,7 +761,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 								ip4_addr3_16(&pcb->remote_ip), ip4_addr4_16(&pcb->remote_ip)));
 
 		++pcb_remove;
-		err = ERR_ABRT;
+		err = ERR_TIMEOUT;
 		++pcb_reset;
 	  }
 #if LWIP_TCP_KEEPALIVE
