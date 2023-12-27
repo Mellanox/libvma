@@ -1830,6 +1830,9 @@ int sockinfo_tcp::handle_rx_error(bool is_blocking)
 			si_tcp_logdbg("RX on reseted socket");
 			m_conn_state = TCP_CONN_FAILED;
 			errno = ECONNRESET;
+		} else if (m_conn_state == TCP_CONN_TIMEOUT) {
+			si_tcp_logdbg("RX on timed out socket");
+			errno = ETIMEDOUT;
 		} else {
 			si_tcp_logdbg("RX on disconnected socket - EOF");
 			ret = 0;
