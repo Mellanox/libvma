@@ -14,7 +14,7 @@ dnl===-----------------------------------------------------------------------===
 #
 define([vma_ver_major], 9)
 define([vma_ver_minor], 0)
-define([vma_ver_revision], 2)
+define([vma_ver_revision], 21)
 define([vma_ver_release], 0)
 
 
@@ -30,7 +30,7 @@ AC_CONFIG_HEADER([config.h])
 
 VMA_LIBRARY_MAJOR=9
 VMA_LIBRARY_MINOR=0
-VMA_LIBRARY_REVISION=2
+VMA_LIBRARY_REVISION=21
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])

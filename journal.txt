@@ -1,3 +1,10 @@
+Version 9.0.21-0:
+Date + Time 2023-12-27
+=============================================================
+Fixed:
+        - RM #3697720 Fixing socket destruction race
+        - RM #3655436 Add full TCP_KEEPALIVE support
+
 Version 9.0.2-0:
 Date + Time 2020-02-06
 =============================================================
