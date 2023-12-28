@@ -1,3 +1,13 @@
+Version 9.8.50-1:
+Date + Time 2023-12-28
+=============================================================
+Fixed:
+        - RM #3604029 Fix releasing ring flow
+        - RM #3623373 Fix corruption during ring release
+        - RM #3655436 Add full TCP_KEEPALIVE support
+        - RM #3697720 Fixing socket destruction race
+        - RM #1214066 Update some unsigned char -> uint32_t for table_id
+
 Version 9.8.40-1:
 Date + Time 2023-09-12
 =============================================================
