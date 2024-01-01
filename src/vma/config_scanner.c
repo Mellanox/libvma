@@ -756,7 +756,7 @@ int libvma_yy_flex_debug = 0;
 char *libvma_yytext;
 /* Line 1 of config_scanner.l */
 /*
- * Copyright (c) 2001-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2001-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
