@@ -150,17 +150,19 @@ public :
 	const tcp_keepalive_info get_tcp_keepalive_info(bool update = false)
 	{
 		static tcp_keepalive_info val = {7200, 75, 9};
-		auto read_file_to_positive_int = [](const char *path, int default_value) {
+		auto read_positive_or_default = [](const char *path, int default_value) {
 			int ret = read_file_to_int(path, default_value);
 			return ret > 0 ? ret : default_value;
 		};
 		if (update) {
 			val.idle_secs =
-				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_time", val.idle_secs);
+				read_positive_or_default("/proc/sys/net/ipv4/tcp_keepalive_time", val.idle_secs);
 			val.interval_secs =
-				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_intvl", val.interval_secs);
+				std::max(0, read_file_to_int("/proc/sys/net/ipv4/tcp_keepalive_intvl",
+											 val.interval_secs));
 			val.num_probes =
-				read_file_to_positive_int("/proc/sys/net/ipv4/tcp_keepalive_probes", val.num_probes);
+				std::max(0, read_file_to_int("/proc/sys/net/ipv4/tcp_keepalive_probes",
+											 val.num_probes));
 		}
 		return val;
 	}
