@@ -63,6 +63,10 @@
             default: true
             description: "Launch coverity verification."
         - bool:
+            name: "do_coverity_snapshot"
+            default: false
+            description: "Submit Coverity Static Analysis as a snapshot (normally it should be checked only for master branch after proper defects review)"
+        - bool:
             name: "do_test"
             default: true
             description: "Use runtime verification."
