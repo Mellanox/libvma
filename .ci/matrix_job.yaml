@@ -22,6 +22,9 @@ volumes:
   - {mountPath: /hpc/local/commercial, hostPath: /hpc/local/commercial}
   - {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
 
+credentials:
+  - {credentialsId: '925b0900-e273-4042-bc7c-facaefae0727', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
+
 env:
   build_dockers: false
 
@@ -168,6 +171,7 @@ steps:
 
   - name: Coverity
     enable: ${do_coverity}
+    credentialsId: '925b0900-e273-4042-bc7c-facaefae0727'
     containerSelector:
       - "{name: 'toolbox', category: 'tool'}"
     agentSelector:
