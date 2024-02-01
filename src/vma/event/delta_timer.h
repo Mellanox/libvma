@@ -34,7 +34,7 @@
 #ifndef DELTA_TIMER_H
 #define DELTA_TIMER_H
 
-#include <time.h>
+#include <chrono>
 #include "utils/lock_wrapper.h"
 
 #define INFINITE_TIMEOUT (-1)
@@ -55,9 +55,9 @@ enum timer_req_type_t {
 
 struct timer_node_t {
 	/* delta time from the previous node (millisec) */
-	unsigned int            delta_time_msec;
+	std::chrono::milliseconds            delta_time_msec;
 	/* the orig timer requested (saved in order to re-register periodic timers) */
-	unsigned int            orig_time_msec;
+	std::chrono::milliseconds            orig_time_msec;
 	/* control thread-safe access to handler. Recursive because unregister_timer_event()
 	 * can be called from handle_timer_expired()
 	 * that is under trylock() inside process_registered_timers
@@ -107,7 +107,7 @@ private:
 	void    remove_from_list(timer_node_t* node);
 
 	timer_node_t*   m_list_head;
-	timespec        m_ts_last;
+	std::chrono::time_point<std::chrono::steady_clock>    m_ts_last;
 };
 
 const char* timer_req_type_str(timer_req_type_t type);
