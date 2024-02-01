@@ -31,8 +31,8 @@
  */
 
 
+#include <chrono>
 #include <stdlib.h>
-#include <sys/time.h>
 #include "utils/bullseye.h"
 #include "utils/clock.h"
 #include "vlogger/vlogger.h"
@@ -52,15 +52,16 @@
 //#define tmr_logfuncall	__log_funcall
 #define tmr_logfuncall(fmt, ...)
 
+using namespace std::chrono;
 
 #define IS_NODE_INVALID(_node_)		\
 	(!_node_ || !_node_->handler || (_node_->req_type < 0 || _node_->req_type >= INVALID_TIMER))
 
 
 timer::timer()
+    : m_list_head(nullptr)
+    , m_ts_last(steady_clock::now())
 {
-	m_list_head = NULL;
-	gettime(&m_ts_last);
 }
 
 timer::~timer()
@@ -82,7 +83,7 @@ void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_h
 	node->handler = handler;
 	node->req_type = req_type;
 	node->user_data = user_data;
-	node->orig_time_msec = timeout_msec;
+	node->orig_time_msec = milliseconds(timeout_msec);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (IS_NODE_INVALID(node)) {
@@ -105,8 +106,8 @@ void timer::wakeup_timer(timer_node_t* node)
 
 	remove_from_list(node);
 
-	unsigned int orig_time = node->orig_time_msec;
-	node->orig_time_msec = 0;
+	auto orig_time = node->orig_time_msec;
+	node->orig_time_msec = milliseconds(0);
 	insert_to_list(node);
 	node->orig_time_msec = orig_time;
 
@@ -178,48 +179,41 @@ void timer::remove_all_timers(timer_handler *handler)
 
 int timer::update_timeout()
 {
-	int ret = 0, delta_msec = 0;
+	int ret;
 	timer_node_t* list_tmp = NULL;
-	struct timespec ts_now, ts_delta;
+	auto now = steady_clock::now();
 
-	ret = gettime(&ts_now);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (ret) {
-		tmr_logpanic("gettime() returned with error (errno %d %m)", ret);
-		return INFINITE_TIMEOUT;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	// Find difference (subtract)
-	ts_sub(&ts_now, &m_ts_last, &ts_delta);
-	delta_msec = ts_to_msec(&ts_delta);
+	auto delta = duration_cast<milliseconds>(now - m_ts_last);
 
 	// Save 'now' as 'last'
-	if (delta_msec > 0)
-		m_ts_last = ts_now;
+	if (delta > milliseconds(0)) {
+		m_ts_last = now;
+	}
 
 	// empty list -> unlimited timeout
 	if (!m_list_head) {
-		tmr_logfunc("elapsed time: %d msec", delta_msec);
+		tmr_logfunc("elapsed time: %ld msec", delta.count());
 		ret = INFINITE_TIMEOUT;
 		goto out;
 	}
 
 	// Check for timeout!
 	list_tmp = m_list_head;
-	while (delta_msec > 0 && list_tmp) {
-		tmr_logfuncall("updating list node %p with elapsed time: %d msec", list_tmp, delta_msec);
-		if ((int) list_tmp->delta_time_msec > delta_msec) {
-			list_tmp->delta_time_msec -= delta_msec;
+	while (delta > milliseconds(0) && list_tmp) {
+		tmr_logfuncall("updating list node %p with elapsed time: %ld msec", list_tmp,
+					   delta.count());
+		if (list_tmp->delta_time_msec > delta) {
+			list_tmp->delta_time_msec -= delta;
 			break;
 		}
 		else {
-			delta_msec -= list_tmp->delta_time_msec;
-			list_tmp->delta_time_msec = 0;
+			delta -= list_tmp->delta_time_msec;
+			list_tmp->delta_time_msec = milliseconds(0);
 		}
 		list_tmp = list_tmp->next;
 	}
 
-	ret = m_list_head->delta_time_msec;
+	ret = m_list_head->delta_time_msec.count();
 
 out:
 	tmr_logfuncall("next timeout: %d msec", ret);
@@ -230,7 +224,7 @@ void timer::process_registered_timers()
 {
 	timer_node_t* iter = m_list_head;
 	timer_node_t* next_iter;
-	while (iter && (iter->delta_time_msec == 0)) {
+	while (iter && (iter->delta_time_msec == milliseconds(0))) {
 		tmr_logfuncall("timer expired on %p", iter->handler);
 
 		/* Special check is need to protect
@@ -273,7 +267,6 @@ void timer::process_registered_timers()
 // insert allocated node to the list
 void timer::insert_to_list(timer_node_t* new_node)
 {
-	unsigned int tmp_delta;
 	timer_node_t* iter;
 	timer_node_t* prev;
 
@@ -282,16 +275,17 @@ void timer::insert_to_list(timer_node_t* new_node)
 		new_node->next = NULL;
 		new_node->prev = NULL;
 		m_list_head = new_node;
-		tmr_logfuncall("insert first node to list (handler %p, timer %d, delta time %d)", new_node->handler, new_node->orig_time_msec, new_node->delta_time_msec);
+		tmr_logfuncall("insert first node to list (handler %p, timer %d, delta time %d)",
+				 new_node->handler, new_node->orig_time_msec, new_node->delta_time_msec);
 		return;
 	}
 	// else: need to find the correct place in the list
-	tmp_delta = new_node->orig_time_msec;
+	auto tmp_delta = new_node->orig_time_msec;
 	iter = m_list_head;
 	prev = NULL;
 
 	while (iter && tmp_delta >= iter->delta_time_msec) {
-		tmp_delta = tmp_delta - iter->delta_time_msec;
+		tmp_delta -= iter->delta_time_msec;
 		prev = iter;
 		iter = iter->next;
 	}
@@ -307,10 +301,12 @@ void timer::insert_to_list(timer_node_t* new_node)
 	}
 	// update the delta time for the next element
 	if (new_node->next) {
-		new_node->next->delta_time_msec = new_node->next->delta_time_msec - new_node->delta_time_msec;
+		new_node->next->delta_time_msec -= new_node->delta_time_msec;
 		new_node->next->prev = new_node;
 	}
-	tmr_logfuncall("insert new node to list  (handler %p, timer %d, delta time %d)", new_node->handler, new_node->orig_time_msec, new_node->delta_time_msec);
+	tmr_logfuncall("insert new node to list  (handler %p, timer %ld, delta time %ld)",
+					new_node->handler, new_node->orig_time_msec.count(),
+					new_node->delta_time_msec.count());
 }
 
 // remove timer from list (without free)
@@ -325,10 +321,11 @@ void timer::remove_from_list(timer_node_t* node)
 		m_list_head = node->next; 
 	}
 	if (node->next) { // not the last element in list
-		node->next->delta_time_msec = node->next->delta_time_msec + node->delta_time_msec;
+		node->next->delta_time_msec += node->delta_time_msec;
 		node->next->prev = node->prev;
 	}
-	tmr_logfuncall("removed node from list (handler %p, timer %d, delta time %d)", node->handler, node->orig_time_msec, node->delta_time_msec);
+	tmr_logfuncall("removed node from list (handler %p, timer %ld, delta time %ld)", node->handler,
+					node->orig_time_msec.count(), node->delta_time_msec.count());
 }
 
 
@@ -353,7 +350,7 @@ void timer::debug_print_list()
 	timer_node_t* iter = m_list_head;
 	tmr_logdbg("");
 	while (iter) {
-		tmr_logdbg("node %p timer %d",iter, iter->delta_time_msec);
+		tmr_logdbg("node %p timer %ld",iter, iter->delta_time_msec.count());
 		iter = iter->next;
 	}
 }
