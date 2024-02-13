@@ -34,6 +34,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <chrono>
 #include <time.h>
 #include <string>
 #include <string.h>
@@ -42,7 +43,6 @@
 #include <exception>
 
 #include "vtypes.h"
-#include "utils/rdtsc.h"
 #include "vlogger/vlogger.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/util/vma_stats.h"
@@ -396,46 +396,21 @@ static inline void create_mgid_from_ipv4_mc_ip(uint8_t *mgid, uint16_t pkey, uin
  * special design for the rx loop. 
  */
 class loops_timer {
-        public:
-                loops_timer();
-                void start();
-                int  time_left_msec();
-                void set_timeout_msec(int timeout_msec) { m_timeout_msec = timeout_msec; }
-                int  get_timeout_msec() { return m_timeout_msec; }
-                inline bool is_timeout() {
-                        if (m_timeout_msec == -1)
-                                return false;
-
-                        if (m_timer_countdown > 0) {
-                                m_timer_countdown--;
-                                return false;
-                        }
-                        //init counter
-                        m_timer_countdown = m_interval_it;
-
-                        if (!ts_isset(&m_start)) {
-                                gettime(&m_start);
-                        }
-                        //update timer
-                        gettime(&m_current);
-                        ts_sub(&m_current, &m_start, &m_elapsed);
-                        vlog_printf(VLOG_FUNC_ALL, "update loops_timer (elapsed time=%ld sec %ld usec\n", ts_to_sec(&m_elapsed), ts_to_usec(&m_elapsed));
-
-
-
-                        // test for timeout 
-                        if (m_timeout_msec <= ts_to_msec(&m_elapsed)) 
-                                return true;
-
-                        return false;
-                }
-        private:
-                timespec m_start;
-                timespec m_elapsed;
-                timespec m_current;
-                int m_interval_it;
-                int m_timer_countdown;
-                int m_timeout_msec;
+public:
+	loops_timer();
+	void start();
+	int  time_left_msec();
+	void set_timeout_msec(int timeout_msec) { m_timeout_msec = timeout_msec; }
+	int  get_timeout_msec() { return m_timeout_msec; }
+	bool is_timeout();
+	
+private:
+	std::chrono::time_point<std::chrono::steady_clock> m_start;
+	std::chrono::milliseconds m_elapsed;
+	std::chrono::time_point<std::chrono::steady_clock> m_current;
+	int m_interval_it;
+	int m_timer_countdown;
+	int m_timeout_msec;
 };
 
 // Returns the filesystem's inode number for the given 'fd' using 'fstat' system call that assumes 32 bit inodes

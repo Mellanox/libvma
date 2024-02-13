@@ -43,6 +43,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>
+#include <chrono>
 #include <limits>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
@@ -68,6 +69,7 @@
 #endif
 
 using namespace std;
+using namespace std::chrono;
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"utils:"
@@ -1212,18 +1214,18 @@ int validate_tso(int if_index)
 }
 
 loops_timer::loops_timer()
+	: m_start()
+	, m_elapsed(milliseconds(0))
+	, m_current()
+	, m_interval_it(2048)
+	, m_timer_countdown(0)
+	, m_timeout_msec(-1)
 {
-	m_timeout_msec = -1;
-	m_timer_countdown = 0;
-	m_interval_it = 2048;
-	ts_clear(&m_start);
-	ts_clear(&m_elapsed);
-	ts_clear(&m_current);
 }
 
 void loops_timer::start()
 {
-	ts_clear(&m_start);
+	m_start = steady_clock::time_point();
 	// set to 1 so the first loop is fast and only after it m_start will be initialized
 	m_timer_countdown = 1;
 }
@@ -1233,23 +1235,45 @@ int loops_timer::time_left_msec()
 	if ( m_timeout_msec == -1 )
 		return -1;
 
-	if (!ts_isset(&m_start)) { //VMA_RX_POLL==0
-		gettime(&m_start);
+	auto current = steady_clock::now();
+	if (m_start.time_since_epoch() == steady_clock::duration::zero()) {
+		m_start = current;
 	}
-	timespec current;
-	gettime(&current);
-	ts_sub(&current, &m_start, &m_elapsed);
+	m_elapsed = duration_cast<milliseconds>(current - m_start);
 
-	//cover the case of left<0
-	return (m_timeout_msec-ts_to_msec(&m_elapsed))>0 ? m_timeout_msec-ts_to_msec(&m_elapsed) : 0;
+	return std::max<int>(0, m_timeout_msec - m_elapsed.count());
 }
 
+bool loops_timer::is_timeout()
+{
+    if (m_timeout_msec == -1)
+        return false;
+
+    if (m_timer_countdown > 0) {
+        m_timer_countdown--;
+        return false;
+    }
+    //init counter
+    m_timer_countdown = m_interval_it;
+
+    if (m_start.time_since_epoch() == steady_clock::duration::zero()) {
+        m_start = steady_clock::now();
+    }
+    // update timer
+    m_current = steady_clock::now();
+    m_elapsed = duration_cast<milliseconds>(m_current - m_start);
+
+    __log_finer("update loops_timer elapsed time=%ld msec\n", m_elapsed.count());
+
+    // test for timeout
+    return m_timeout_msec <= m_elapsed.count();
+}
 ///////////////////////////////////////////
 uint32_t fd2inode(int fd)
 {
 	struct stat buf;
 	int rc = fstat(fd, &buf);
-	return rc==0 ? buf.st_ino : 0; // no inode is 0
+	return rc == 0 ? buf.st_ino : 0; // no inode is 0
 }
 
 ///////////////////////////////////////////
