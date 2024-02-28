@@ -1,3 +1,10 @@
+Version 9.8.60-1:
+Date + Time 2024-02-28
+=============================================================
+Fixed:
+        - RM #3749337 Fix TCP keepAlive timer when set to -1
+        - RM #3749310 Fix delayed TCP keepAlive probes
+
 Version 9.8.51-1:
 Date + Time 2024-01-11
 =============================================================
