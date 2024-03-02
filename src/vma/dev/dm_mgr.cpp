@@ -246,6 +246,7 @@ bool dm_mgr::copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t len
 dev_mem_oob:
 	dm_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
 			buff, length, length_aligned_8, continuous_left, m_head, m_used);
+	NOT_IN_USE(continuous_left); // Suppress dead assignment warning
 
 	m_p_ring_stat->simple.n_tx_dev_mem_oob++;
 

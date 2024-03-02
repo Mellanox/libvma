@@ -284,8 +284,10 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 	uint32_t opt_ht = HANDLE_SET(ht, 0, 0);
 	struct rtattr *opts = NULL;
 	struct {
-		struct tc_u32_sel sel;
-		struct tc_u32_key keys[5];
+		union {
+			struct tc_u32_sel sel;
+			uint8_t pad[sizeof(struct tc_u32_sel) + sizeof(struct tc_u32_key) * 5U];
+		};
 	} opt_sel;
 
 	tc_req(tc, ifindex, RTM_NEWTFILTER,
@@ -357,8 +359,10 @@ int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, i
 	uint32_t opt_ht = HANDLE_SET(0x800, 0, 0);
 	struct rtattr *opts = NULL;
 	struct {
-		struct tc_u32_sel sel;
-		struct tc_u32_key keys[5];
+		union {
+			struct tc_u32_sel sel;
+			uint8_t pad[sizeof(struct tc_u32_sel) + sizeof(struct tc_u32_key) * 5U];
+		};
 	} opt_sel;
 
 	tc_req(tc, ifindex, RTM_NEWTFILTER,
@@ -479,8 +483,10 @@ int tc_add_filter_dev2tap(tc_t tc, int ifindex, int prio, int ht, int bkt, int i
 	uint32_t opt_ht = HANDLE_SET(ht, bkt, 0);
 	struct rtattr *opts = NULL;
 	struct {
-		struct tc_u32_sel sel;
-		struct tc_u32_key keys[10];
+		union {
+			struct tc_u32_sel sel;
+			uint8_t pad[sizeof(struct tc_u32_sel) + sizeof(struct tc_u32_key) * 10U];
+		};
 	} opt_sel;
 
 	tc_req(tc, ifindex, RTM_NEWTFILTER,
