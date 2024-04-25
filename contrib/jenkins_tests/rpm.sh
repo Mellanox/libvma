@@ -87,5 +87,36 @@ if [ $opt_checkpkg -eq 1 ]; then
     test_id=$((test_id+1))
 fi
 
+# check if we have email of indevidual users in the packages rpm/deb metadata Maintainer field
+pacakges_location="$rpm_dir"/dist-pkg/packages
+email_log_file="$rpm_dir"/dist-pkg/email_scan.log
+if [ $opt_rpm -eq 1 ]; then
+	search_filter="*.rpm"
+	test_info_exec="rpm -qpi --changelog"
+else
+	search_filter="*.deb"
+	test_info_exec="apt info"
+fi
+
+# iterate on all packages and extarct the metadata to outout file
+find "$pacakges_location" -type f -name "$search_filter" -exec$test_info_exec {} \; | tee -a "$email_log_file"
+do_archive "$email_log_file"
+set +e
+
+# grep email strings exclude allowed email networking-support@nvidiacom
+test_output=$(grep -Eioh '([[:alnum:]_.-]+@[[:alnum:]_.-]+?\[[:alpha:].]{2,6})' "$email_log_file" | grep -v "networking-support")
+test_rc=$?
+# check rc - grep will return 0 if it found such mail and 1 if not
+if [[ $test_rc -eq 0 ]]; then
+	# if we found such mail we will get return code 0
+	echo "ERROR: found bad email address $test_output"
+	rc=$((rc + 1))
+elif [[ -n "$test_output" ]]; then
+	# if we got rc not 0 and we have output it means something else failed
+	echo "ERROR: could not find bad email but something else failed: $test_output"
+	rc=$((rc + 1))
+fi
+set -e 
+
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc
