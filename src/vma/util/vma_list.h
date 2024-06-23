@@ -207,7 +207,7 @@ public:
 		}
 	}
 
-	vma_list_t<T, offset> (const vma_list_t<T, offset>& other) {
+	vma_list_t(const vma_list_t<T, offset>& other) {
 		if (!other.empty())
 			vlist_logwarn("Copy constructor is not supported for non-empty list! other.size=%zu", other.m_size);
 		init_list();
