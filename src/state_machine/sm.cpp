@@ -194,6 +194,7 @@ BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
 	sm_logdbg("SM full table processing done. Allocated memory size of %d bytes", sm_table_entries_size);
+	(void)sm_table_entries_size; // Suppress --enable-opt-log=high warning
 	return 0;
 }
 

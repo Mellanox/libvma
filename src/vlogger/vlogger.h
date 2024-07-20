@@ -259,7 +259,9 @@ extern vma_log_cb_t g_vlogger_cb;
 #define vlog_func_all_enter()   vlog_printf(VLOG_FINER,"ENTER %s\n", __PRETTY_FUNCTION__);
 #define vlog_func_all_exit()    vlog_printf(VLOG_FINER,"EXIT %s\n",__PRETTY_FUNCTION__);
 
+#ifndef HAVE_GETTID
 pid_t gettid(void); // Check vlogger.cpp for implementation
+#endif
 
 void printf_backtrace(void);
 

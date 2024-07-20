@@ -300,7 +300,7 @@ typedef struct {
 #ifdef DEFINED_IBV_QP_SUPPORT_BURST
 #define vma_ibv_init_burst_attr(qp_attr, rate_limit)    { qp_attr.max_burst_sz = rate_limit.max_burst_sz; qp_attr.typical_pkt_sz = rate_limit.typical_pkt_sz; }
 typedef struct ibv_qp_rate_limit_attr                   vma_ibv_rate_limit_attr;
-#define vma_ibv_modify_qp_rate_limit(qp, attr, mask)    ibv_modify_qp_rate_limit(qp, attr)
+#define vma_ibv_modify_qp_rate_limit(qp, attr, mask)    ({ NOT_IN_USE(mask); ibv_modify_qp_rate_limit(qp, attr); })
 #define vma_ibv_init_qps_attr(qp_attr)                  { NOT_IN_USE(qp_attr); }
 #else
 typedef vma_ibv_qp_attr                                 vma_ibv_rate_limit_attr;

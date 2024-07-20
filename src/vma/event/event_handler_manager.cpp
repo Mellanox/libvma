@@ -502,6 +502,7 @@ void event_handler_manager::priv_prepare_ibverbs_async_event_queue(event_handler
 		cnt++;
 	}
 	evh_logdbg("Emptied %d Events", cnt);
+	NOT_IN_USE(cnt); // Suppress --enable-opt-log=high warning
 }
 
 void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& info)
