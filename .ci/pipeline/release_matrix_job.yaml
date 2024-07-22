@@ -1,0 +1,54 @@
+---
+job: LibVMA-release
+registry_host: harbor.mellanox.com
+registry_auth: 1daaea28-800e-425f-a91f-3bd3e9136eea
+registry_path: /swx-infra/media/libvma
+
+kubernetes:
+  privileged: true
+  cloud: il-ipp-blossom-prod
+  nodeSelector: 'beta.kubernetes.io/os=linux'
+  namespace: swx-media
+  limits: '{memory: 8Gi, cpu: 7000m}'
+  requests: '{memory: 8Gi, cpu: 7000m}'
+
+env:
+  MAIL_FROM: jenkins@nvidia.com
+
+volumes:
+  # Default release location
+  - {mountPath: /auto/mswg/release/vma, hostPath: /auto/mswg/release/vma}
+  # User profile for release
+  - {mountPath: /var/home/swx-jenkins, hostPath: /labhome/swx-jenkins}
+
+runs_on_dockers:
+  - {file: '.ci/dockerfiles/Dockerfile.rhel8.6.release', name: 'rhel8.6', uri: '$arch/$name/release', build_args: '--no-cache', arch: 'x86_64', tag: '20240718'}
+
+steps:
+  - name: Release
+    parallel: false
+    run: |
+      .ci/do_release.sh
+    archiveArtifacts: pkg/build_pkg.log,pkg/packages/*.rpm
+
+pipeline_start:
+    shell: action
+    module: groovy
+    run: |
+      echo "Starting release process for LibVMA-${release_tag}"
+      currentBuild.displayName += "-${release_tag}"
+
+pipeline_stop:
+    shell: action
+    module: groovy
+    run: |
+      if (!params.notification_email.isEmpty()) {
+        mail from: "${MAIL_FROM}",
+          mimeType: 'text/html',
+          to: "${notification_email}",
+          subject: "Release build ended for LibVMA - ${release_tag}",
+          body: """
+            <p><b>Tag:</b> ${release_tag}</p>
+            <p><b>Build url:</b> <a href=${currentBuild.absoluteUrl}>link</a></p>
+            <p><b>Status:</b> ${currentBuild.currentResult}</p>"""
+      }
