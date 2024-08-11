@@ -70,12 +70,7 @@ if [ "${do_release}" = true ] ; then
 
     sudo -E -u swx-jenkins mkdir -p "$DST_DIR"
     sudo -E -u swx-jenkins cp -v "${pkg_name}" "$DST_DIR"
-
-    cd "${release_folder}"
-    sudo -E -u swx-jenkins ln -s "$DST_DIR/${pkg_name}" latest_release
-
     echo "Release found at $DST_DIR"
-
 else
      echo "do_release is set to false, skipping package release."
 fi
