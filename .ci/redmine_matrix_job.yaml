@@ -21,18 +21,17 @@ volumes:
   - {mountPath: /hpc/local/inst/hpc-internal-tools, hostPath: /hpc/local/inst/hpc-internal-tools}
 
 runs_on_dockers:
-# ubuntu 16.04 is used due to script dependency on python2 old print format
-  - {name: 'ub16.04-base', url: 'harbor.mellanox.com/swx-infra/x86_64/ubuntu16.04/base', arch: 'x86_64'}
+  - {name: 'ub22.04-base', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', arch: 'x86_64'}
 
 steps:
   - name: Redmine
     containerSelector:
-      - "{name: 'ub16.04-base'}"
+      - "{name: 'ub22.04-base'}"
     run: |
       #!/bin/bash -eExl
       env
-
-      /hpc/local/inst/hpc-internal-tools/tools/git_tools/git_redmine/update_redmine_from_git_commit.py --update --project_id=9 --on_email_mismatch=warn \
+      python3 -m pip install six
+      python3 /hpc/local/inst/hpc-internal-tools/tools/git_tools/git_redmine/update_redmine_from_git_commit_python3.py --update --project_id=9 --on_email_mismatch=warn \
       --on_issue_not_in_project=fail --pr_url=${ghprbPullLink} --commit_id=${ghprbActualCommit}
     parallel: false
 

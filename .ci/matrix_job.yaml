@@ -30,7 +30,7 @@ env:
   build_dockers: false
 
 runs_on_dockers:
-# doca-hostw
+# doca-host
   - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
   - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
   - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
@@ -40,14 +40,12 @@ runs_on_dockers:
   - {name: 'ub22.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
   - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
 # tool
-  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
-  - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
-  - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
 
 matrix:
   axes:
