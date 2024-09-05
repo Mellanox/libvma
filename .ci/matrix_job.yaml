@@ -24,6 +24,7 @@ volumes:
 
 credentials:
   - {credentialsId: '925b0900-e273-4042-bc7c-facaefae0727', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
+  - {credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
 
 env:
   build_dockers: false
@@ -41,7 +42,7 @@ runs_on_dockers:
 # tool
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
-  - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.14', category: 'tool', arch: 'x86_64', tag: '0.0.14'}
+  - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
@@ -79,7 +80,8 @@ steps:
 
   - name: Copyrights
     enable: ${do_copyrights}
-    run: env WORKSPACE=$PWD ./contrib/jenkins_tests/copyrights.sh
+    credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74'
+    run: env WORKSPACE=$PWD GITHUB_TOKEN=$MELLANOX_GH_TOKEN ./contrib/jenkins_tests/copyrights.sh
     containerSelector:
       - "{name: 'header-check', category: 'tool'}"
     agentSelector:
