@@ -1,5 +1,6 @@
 # prof.m4 - Profiling, instrumentation
 # 
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
 # Copyright (c) 2001-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #

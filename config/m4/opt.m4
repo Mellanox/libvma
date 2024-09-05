@@ -1,5 +1,6 @@
 # opt.m4 - Macros to control optimization
 # 
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
 # Copyright (c) 2001-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #

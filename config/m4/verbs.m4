@@ -1,5 +1,6 @@
 # verbs.m4 - Parsing verbs capabilities
 #
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
 # Copyright (c) 2001-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #
