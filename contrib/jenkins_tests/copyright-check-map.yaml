@@ -34,7 +34,7 @@ general:
         - ".*src/vma/config_parser.*"
         - ".*src/vma/config_scanner\\.c"
 
-nbu-open-source:
+bsd:
     include:
         - ".*"
     exclude:
