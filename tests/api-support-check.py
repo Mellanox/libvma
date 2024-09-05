@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 #@copyright:
+# SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
 # Copyright (c) 2015-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # This software is available to you under a choice of one of two
