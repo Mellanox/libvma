@@ -29,35 +29,35 @@ credentials:
 env:
   build_dockers: false
 
-runs_on_dockers:
-# doca-hostw
-  - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
-  - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
-  - {name: 'ub24.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu24.04/base', category: 'base', arch: 'aarch64'}
-  - {name: 'sl15sp4-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/sles15sp4/base', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'ub22.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
-  - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
-# tool
-  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
-  - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
-  - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
+# runs_on_dockers:
+# # doca-hostw
+#   - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
+#   - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
+#   - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
+#   - {name: 'ub24.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu24.04/base', category: 'base', arch: 'aarch64'}
+#   - {name: 'sl15sp4-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/sles15sp4/base', category: 'base', arch: 'x86_64'}
+#   - {name: 'rhel8.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'base', arch: 'x86_64'}
+#   - {name: 'ub22.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
+#   - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
+# # tool
+#   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+#   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
+#   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
-  - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
-  - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
+  # - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
+  # - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
 
-matrix:
-  axes:
-    flags:
-      - default
-      - extra
-    arch:
-      - x86_64
-      - aarch64
-      - ppc64le
+# matrix:
+#   axes:
+#     flags:
+#       - default
+#       - extra
+#     arch:
+#       - x86_64
+#       - aarch64
+#       - ppc64le
 
 env:
   jenkins_opt_artifacts: 'none'
@@ -78,34 +78,34 @@ steps:
       echo
     parallel: false
 
-  - name: Copyrights
-    enable: ${do_copyrights}
-    credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74'
-    run: env WORKSPACE=$PWD GITHUB_TOKEN=$MELLANOX_GH_TOKEN ./contrib/jenkins_tests/copyrights.sh
-    containerSelector:
-      - "{name: 'header-check', category: 'tool'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    archiveArtifacts: '*.log,*.tar.gz'
-    parallel: false
+  # - name: Copyrights
+  #   enable: ${do_copyrights}
+  #   credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74'
+  #   run: env WORKSPACE=$PWD GITHUB_TOKEN=$MELLANOX_GH_TOKEN ./contrib/jenkins_tests/copyrights.sh
+  #   containerSelector:
+  #     - "{name: 'header-check', category: 'tool'}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   archiveArtifacts: '*.log,*.tar.gz'
+  #   parallel: false
 
-  - name: Install Doca-host
-    containerSelector:
-      - "{category: 'base'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    run: |
-      echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
+  # - name: Install Doca-host
+  #   containerSelector:
+  #     - "{category: 'base'}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   run: |
+  #     echo "Installing DOCA: ${DOCA_VERSION} ..."
+  #     .ci/scripts/doca_install.sh 
 
-  - name: Install Doca-host on Tools
-    run: |
-      echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
-    containerSelector:
-      - "{name: 'style', category: 'tool'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
+  # - name: Install Doca-host on Tools
+  #   run: |
+  #     echo "Installing DOCA: ${DOCA_VERSION} ..."
+  #     .ci/scripts/doca_install.sh 
+  #   containerSelector:
+  #     - "{name: 'style', category: 'tool'}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
 
   - name: Autogen
     run: |
@@ -123,20 +123,20 @@ steps:
     archiveArtifacts-onfail: |
       jenkins/**/arch-*.tar.gz
 
-  - name: Service
-    enable: ${do_service}
-    containerSelector:
-      - "{category: 'base', variant:1}"
-    agentSelector:
-      - "{category: 'base', variant:1}"
-    run: |
-      [ "x${do_service}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_tool=${action} ./contrib/test_jenkins.sh
-    parallel: false
-    onfail: |
-      ./.ci/artifacts.sh
-    archiveArtifacts-onfail: |
-      jenkins/**/arch-*.tar.gz
+  # - name: Service
+  #   enable: ${do_service}
+  #   containerSelector:
+  #     - "{category: 'base', variant:1}"
+  #   agentSelector:
+  #     - "{category: 'base', variant:1}"
+  #   run: |
+  #     [ "x${do_service}" == "xtrue" ] && action=yes || action=no
+  #     env WORKSPACE=$PWD TARGET=${flags} jenkins_test_tool=${action} ./contrib/test_jenkins.sh
+  #   parallel: false
+  #   onfail: |
+  #     ./.ci/artifacts.sh
+  #   archiveArtifacts-onfail: |
+  #     jenkins/**/arch-*.tar.gz
 
   - name: Package
     enable: ${do_package}
@@ -164,37 +164,37 @@ steps:
     archiveArtifacts-onfail: |
       jenkins/**/arch-*.tar.gz
 
-  - name: Compiler
-    enable: ${do_compiler}
-    containerSelector:
-      - "{name: 'toolbox', category: 'tool'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    run: |
-      [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
-    parallel: false
-    onfail: |
-      ./.ci/artifacts.sh
-    archiveArtifacts-onfail: |
-      jenkins/**/arch-*.tar.gz
+  # - name: Compiler
+  #   enable: ${do_compiler}
+  #   containerSelector:
+  #     - "{name: 'toolbox', category: 'tool'}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   run: |
+  #     [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
+  #     env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
+  #   parallel: false
+  #   onfail: |
+  #     ./.ci/artifacts.sh
+  #   archiveArtifacts-onfail: |
+  #     jenkins/**/arch-*.tar.gz
 
-  - name: Coverity
-    enable: ${do_coverity}
-    credentialsId: '925b0900-e273-4042-bc7c-facaefae0727'
-    containerSelector:
-      - "{name: 'toolbox', category: 'tool'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    run: |
-      [ "x${do_coverity}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cov=${action} ./contrib/test_jenkins.sh
-    parallel: false
-    onfail: |
-      ./.ci/artifacts.sh
-    archiveArtifacts-onfail: |
-      jenkins/**/arch-*.tar.gz,
-      jenkins/**/output/errors/**/*.html
+  # - name: Coverity
+  #   enable: ${do_coverity}
+  #   credentialsId: '925b0900-e273-4042-bc7c-facaefae0727'
+  #   containerSelector:
+  #     - "{name: 'toolbox', category: 'tool'}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   run: |
+  #     [ "x${do_coverity}" == "xtrue" ] && action=yes || action=no
+  #     env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cov=${action} ./contrib/test_jenkins.sh
+  #   parallel: false
+  #   onfail: |
+  #     ./.ci/artifacts.sh
+  #   archiveArtifacts-onfail: |
+  #     jenkins/**/arch-*.tar.gz,
+  #     jenkins/**/output/errors/**/*.html
 
   - name: Cppcheck
     enable: ${do_cppcheck}
@@ -274,51 +274,51 @@ steps:
       jenkins/**/arch-*.tar.gz,
       jenkins/**/vg/*valgrind*.log
 
-  - name: Commit
-    enable: ${do_commit}
-    containerSelector:
-      - "{name: 'coverity', category:'tool', variant:1}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    run: |
-      [ "x${do_commit}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_commit=${action} ./contrib/test_jenkins.sh
-    parallel: false
-    onfail: |
-      ./.ci/artifacts.sh
-    archiveArtifacts-onfail: |
-      jenkins/**/arch-*.tar.gz
+  # - name: Commit
+  #   enable: ${do_commit}
+  #   containerSelector:
+  #     - "{name: 'coverity', category:'tool', variant:1}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   run: |
+  #     [ "x${do_commit}" == "xtrue" ] && action=yes || action=no
+  #     env WORKSPACE=$PWD TARGET=${flags} jenkins_test_commit=${action} ./contrib/test_jenkins.sh
+  #   parallel: false
+  #   onfail: |
+  #     ./.ci/artifacts.sh
+  #   archiveArtifacts-onfail: |
+  #     jenkins/**/arch-*.tar.gz
 
-  - name: Artifacts
-    enable: ${do_artifact}
-    run: |
-      ./.ci/artifacts.sh
-    parallel: false
-    archiveArtifacts: |
-      jenkins/**/arch-*.tar.gz
-    archiveJunit: |
-      jenkins/**/*.xml
+  # - name: Artifacts
+  #   enable: ${do_artifact}
+  #   run: |
+  #     ./.ci/artifacts.sh
+  #   parallel: false
+  #   archiveArtifacts: |
+  #     jenkins/**/arch-*.tar.gz
+  #   archiveJunit: |
+  #     jenkins/**/*.xml
 
-  - name: Blackduck
-    enable: ${do_blackduck}
-    containerSelector:
-      - "{name: 'blackduck', category:'tool', variant:1}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
-    shell: action
-    module: ngci
-    run: NGCIBlackDuckScan
-    args:
-      projectName: "LibVMA"
-      projectVersion: "0.1.0"
-      projectSrcPath: "src"
-      attachArtifact: true
-      reportName: "BlackDuck report"
-      scanMode: "source"
-      skipDockerDaemonCheck: true
-      credentialsId: "b68aedbd-e39f-4ee2-acce-e25a5b91fe18"
-    env:
-      SPRING_APPLICATION_JSON: '{"blackduck.url":"https://blackduck.mellanox.com/","blackduck.api.token":"ODMwOWYwMzEtODA2ZC00MzBjLWI1ZDEtNmFiMjBkYzQzMzkwOjNmNjExN2M1LWE2ZmEtNDZlYS1hZjRiLTZlNDgwNjAwOTVjNw=="}'
+  # - name: Blackduck
+  #   enable: ${do_blackduck}
+  #   containerSelector:
+  #     - "{name: 'blackduck', category:'tool', variant:1}"
+  #   agentSelector:
+  #     - "{nodeLabel: 'skip-agent'}"
+  #   shell: action
+  #   module: ngci
+  #   run: NGCIBlackDuckScan
+  #   args:
+  #     projectName: "LibVMA"
+  #     projectVersion: "0.1.0"
+  #     projectSrcPath: "src"
+  #     attachArtifact: true
+  #     reportName: "BlackDuck report"
+  #     scanMode: "source"
+  #     skipDockerDaemonCheck: true
+  #     credentialsId: "b68aedbd-e39f-4ee2-acce-e25a5b91fe18"
+  #   env:
+  #     SPRING_APPLICATION_JSON: '{"blackduck.url":"https://blackduck.mellanox.com/","blackduck.api.token":"ODMwOWYwMzEtODA2ZC00MzBjLWI1ZDEtNmFiMjBkYzQzMzkwOjNmNjExN2M1LWE2ZmEtNDZlYS1hZjRiLTZlNDgwNjAwOTVjNw=="}'
 
 pipeline_start:
   run: |
