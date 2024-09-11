@@ -1,7 +1,7 @@
 ---
 job: LibVMA-release-dr
 registry_host: harbor-pdc.nvidia.com
-registry_auth: 1daaea28-800e-425f-a91f-3bd3e9136eea
+registry_auth: swx-infra_harbor_credentials
 registry_path: /swx-infra/media/libvma
 
 kubernetes:
