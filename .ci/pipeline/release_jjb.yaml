@@ -47,7 +47,7 @@
         scm:
             - git:
                 url: "{jjb_git}"
-                credentials-id: 'b7d08ca7-378c-45d6-ac4b-3f30bdf49168'
+                credentials-id: 'swx-jenkins_ssh_key'
                 branches: ['$sha1']
                 shallow-clone: true
                 depth: 2
@@ -105,7 +105,7 @@
         scm:
             - git:
                 url: "{jjb_git}"
-                credentials-id: 'b7d08ca7-378c-45d6-ac4b-3f30bdf49168'
+                credentials-id: 'swx-jenkins_ssh_key'
                 branches: ['$sha1']
                 shallow-clone: true
                 depth: 2
