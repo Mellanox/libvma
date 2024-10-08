@@ -32,6 +32,8 @@
  */
 
 
+// sock-redirect-internal.h must be first
+#include "sock-redirect-internal.h"
 #include "sock-redirect.h"
 
 #include <sys/time.h>

@@ -275,6 +275,7 @@ libvma_la_SOURCES := \
 	sock/sockinfo_tcp.h \
 	sock/sockinfo_udp.h \
 	sock/sock-redirect.h \
+	sock/sock-redirect-internal.h \
 	\
 	util/chunk_list.h \
 	util/hash_map.h \
