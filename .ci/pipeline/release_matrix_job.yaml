@@ -1,7 +1,7 @@
 ---
 job: LibVMA-release
-registry_host: harbor.mellanox.com
-registry_auth: 1daaea28-800e-425f-a91f-3bd3e9136eea
+registry_host: nbu-harbor.gtm.nvidia.com
+registry_auth: swx-infra_harbor_credentials
 registry_path: /swx-infra/media/libvma
 
 kubernetes:
@@ -22,7 +22,14 @@ volumes:
   - {mountPath: /var/home/swx-jenkins, hostPath: /labhome/swx-jenkins}
 
 runs_on_dockers:
-  - {file: '.ci/dockerfiles/Dockerfile.rhel8.6.release', name: 'rhel8.6', uri: '$arch/$name/release', build_args: '--no-cache', arch: 'x86_64', tag: '20240718'}
+  - {
+      file: '.ci/dockerfiles/Dockerfile.rhel8.6.release',
+      name: 'rhel8.6',
+      uri: '$arch/$name/release',
+      build_args: '--no-cache --build-arg WEBREPO_URL=$WEBREPO_URL',
+      arch: 'x86_64',
+      tag: '20241105'
+    }
 
 steps:
   - name: Release

@@ -70,6 +70,7 @@
             keep-system-variables: true
             properties-content: |
               jjb_proj={jjb_proj}-dr
+              WEBREPO_URL=webrepo.mtr.labs.mlnx
     description: Do NOT edit this job through the Web GUI !
     concurrent: false
     parameters:
@@ -99,7 +100,7 @@
             description: "Email to send report to upon success/failure"
         - string:
             name: "conf_file"
-            default: ".ci/pipeline/release_matrix_job_dr.yaml"
+            default: ".ci/pipeline/release_matrix_job.yaml"
             description: "job config file. Do not change it"
     pipeline-scm:
         scm:
