@@ -23,14 +23,14 @@ volumes:
   - {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
 
 credentials:
-  - {credentialsId: '925b0900-e273-4042-bc7c-facaefae0727', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
-  - {credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
+  - {credentialsId: 'media_coverity_credentials', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
+  - {credentialsId: 'mellanox_github_credentials', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
 
 env:
   build_dockers: false
 
 runs_on_dockers:
-# doca-hostw
+# doca-host
   - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
   - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
   - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
@@ -40,14 +40,12 @@ runs_on_dockers:
   - {name: 'ub22.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
   - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
 # tool
-  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
-  - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
-  - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
 
 matrix:
   axes:
@@ -80,7 +78,7 @@ steps:
 
   - name: Copyrights
     enable: ${do_copyrights}
-    credentialsId: 'fb735938-fa1c-4b61-b568-a7c153b4fe74'
+    credentialsId: 'mellanox_github_credentials'
     run: env WORKSPACE=$PWD GITHUB_TOKEN=$MELLANOX_GH_TOKEN ./contrib/jenkins_tests/copyrights.sh
     containerSelector:
       - "{name: 'header-check', category: 'tool'}"
@@ -181,7 +179,7 @@ steps:
 
   - name: Coverity
     enable: ${do_coverity}
-    credentialsId: '925b0900-e273-4042-bc7c-facaefae0727'
+    credentialsId: 'media_coverity_credentials'
     containerSelector:
       - "{name: 'toolbox', category: 'tool'}"
     agentSelector:
