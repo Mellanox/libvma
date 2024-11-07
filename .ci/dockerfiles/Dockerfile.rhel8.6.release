@@ -1,14 +1,16 @@
-ARG HARBOR_URL=harbor.mellanox.com
+ARG HARBOR_URL=nbu-harbor.gtm.nvidia.com
 FROM $HARBOR_URL/hpcx/x86_64/rhel8.6/core:latest
+ARG WEBREPO_URL=webrepo.mtr.labs.mlnx
 ARG _UID=6213
 ARG _GID=101
 ARG _LOGIN=swx-jenkins
 ARG _HOME=/var/home/$_LOGIN
 
-RUN sed -i 's/mirrorlist/#mirrorlist/;s!#baseurl=http://mirror.centos.org!baseurl=http://vault.centos.org!' /etc/yum.repos.d/* && \
+RUN sed -i "s#http://webrepo#http://${WEBREPO_URL}#" /etc/yum.repos.d/* && \
+    sed -i 's/mirrorlist/#mirrorlist/;s!#baseurl=http://mirror.centos.org!baseurl=http://vault.centos.org!' /etc/yum.repos.d/* && \
     echo "[mlnx-opt]" > /etc/yum.repos.d/mlnx-opt.repo && \
     echo "name=RHEL 8.6 mirror" >> /etc/yum.repos.d/mlnx-opt.repo && \
-    echo "baseurl=http://webrepo.mtr.labs.mlnx/RH/optional/8.6/x86_64/" >> /etc/yum.repos.d/mlnx-opt.repo && \
+    echo "baseurl=http://${WEBREPO_URL}/RH/optional/8.6/x86_64/" >> /etc/yum.repos.d/mlnx-opt.repo && \
     echo "enabled=1" >> /etc/yum.repos.d/mlnx-opt.repo && \
     echo "gpgcheck=0" >> /etc/yum.repos.d/mlnx-opt.repo && \
     yum makecache
