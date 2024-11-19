@@ -1318,6 +1318,9 @@ void set_env_params()
 		/* todo - these seem not to work if inline is on, since libmlx is doing (inl || bf) when deciding to bf*/
 		setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
 		setenv("MLX5_POST_SEND_PREFER_BF", "0", 1);
+		if (!getenv("MLX5_SHUT_UP_BF")) {
+			setenv("MLX5_SHUT_UP_BF", "1", 1);
+		}
 	}
 
 	switch (safe_mce_sys().mem_alloc_type) {
