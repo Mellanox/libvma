@@ -1,0 +1,69 @@
+- job-template:
+    name: "{jjb_proj}"
+    project-type: pipeline
+    folder: pdc
+    properties:
+        - github:
+            url: "https://github.com/Mellanox/libvma"
+        - build-discarder:
+            days-to-keep: 50
+            num-to-keep: 20
+        - inject:
+            keep-system-variables: true
+            properties-content: |
+              jjb_proj={jjb_proj}
+    description: Do NOT edit this job through the Web GUI !
+    concurrent: false
+    parameters:
+        - string: 
+            name: "sha1"
+            default: "master"
+            description: "Branch or sha1 to check out"
+        - string:
+            name: "release_tag"
+            default: ""
+            description: "Tag to release"
+        - string:
+            name: "release_folder"
+            default: "/tmp"
+            description: "Folder to release packages into. For NFS tests use /auto/mswg/release/vma/dr/weekly"
+        - string:
+            name: "CONF_FILE"
+            default: ".ci/pipeline/dr_weekly_matrix.yaml"
+            description: "Regex to select job config file"
+        - string:
+            name: "MAIL_TO"
+            # The email associated with the "Media weekly builds @ DR site" Teams group
+            default: "c2a304c7.NVIDIA.onmicrosoft.com@amer.teams.ms" 
+            description: "Email address to send the report to"
+    triggers:
+        - timed: 'H 17 * * *'
+    pipeline-scm:
+        scm:
+            - git:
+                url: "{jjb_git}"
+                credentials-id: 'swx-jenkins_ssh_key'
+                branches: ['$sha1']
+                shallow-clone: false
+                # depth: 10
+                do-not-fetch-tags: false
+                # honor-refspec: true
+                refspec: "+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/* +refs/tags/*:refs/remotes/origin/tags/*"
+                browser: githubweb
+                browser-url: "{jjb_git}"
+                submodule:
+                    disable: false
+                    recursive: true
+                    tracking: true
+                    parent-credentials: true
+        script-path: "{jjb_jenkinsfile}"
+
+- project:
+    name: libvma
+    jjb_email: 'vlogin@nvidia.com'
+    jjb_proj: 'libvma-dr-weekly-launcher'
+    jjb_git: 'git@github.com:Mellanox/libvma.git'
+    jjb_owner: 'Viacheslav Login'
+    jjb_jenkinsfile: '.ci/Jenkinsfile'
+    jobs:
+        - "{jjb_proj}"

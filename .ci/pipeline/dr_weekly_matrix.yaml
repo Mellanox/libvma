@@ -1,0 +1,89 @@
+---
+job: libvma-dr-weekly-launcher
+failFast: false
+timeout_minutes: 120
+
+runs_on_agents:
+  - {nodeLabel: 'master', category: 'base'}
+
+env:
+  MAIL_FROM: jenkins@nvidia.com
+
+pipeline_start:
+  shell: action
+  module: groovy
+  run: |
+    if (!params.MAIL_TO.isEmpty()) {
+      currentBuild.displayName += "_weekly-on-${sha1}"
+      mail from: "${MAIL_FROM}",
+        mimeType: 'text/html',
+        to: "${MAIL_TO}",
+        subject: 'LibVMA weekly DR build has been started',
+        body: """
+          <p><b>Build url:</b> <a href=${currentBuild.absoluteUrl}>link</a></p>"""
+    }
+
+steps:
+  - name: Determine release_tag
+    agentSelector:
+      - "{category: 'base'}"
+    shell: action
+    module: groovy
+    run: |
+      if (params.release_tag.isEmpty()) {
+        env.RELEASE_TAG = sh (returnStdout: true, script: "git describe --tags --abbrev=0 2>/dev/null").trim()
+      } else {
+        env.RELEASE_TAG = "${params.release_tag}"
+      }
+      echo "Release tag for build: ${env.RELEASE_TAG}"
+
+  - name: Check job state
+    shell: action
+    module: groovy
+    run: |
+      def job = Jenkins.instance.getItemByFullName('libvma/LibVMA-release-dr')
+      if (!job.isBuildable()) {
+          echo "The job '${env.JOB}' is disabled. Enabling..."
+          job.setDisabled(false)
+      } 
+      echo "The Job is enabled. Starting..."
+
+  - name: Run Job with parameters
+    shell: action
+    module: groovy
+    run: |
+      echo "Release tag we're building on: ${env.RELEASE_TAG}"
+      if (env.RELEASE_TAG) {
+        def build = build job: 'libvma/LibVMA-release-dr',
+          parameters: [
+            string(name: 'release_tag', value: RELEASE_TAG),
+            string(name: 'release_folder', value: "${release_folder}"),
+            string(name: 'notification_email', value: MAIL_TO),
+            string(name: 'sha1', value: sha1),
+          ],
+          propagate: false
+
+        env.LINUX_BUILD_URL = build.absoluteUrl
+        env.LINUX_BUILD_RES = build.result
+        if (!build.resultIsBetterOrEqualTo('SUCCESS')) {
+          currentBuild.result = 'FAILURE'
+          error("Weekly build failed")
+        }
+      }
+
+pipeline_stop:
+    shell: action
+    module: groovy
+    agentSelector:
+      - "{category: 'base'}"
+    run: |
+      if (!params.MAIL_TO.isEmpty()) {
+        mail from: "${MAIL_FROM}",
+          mimeType: 'text/html',
+          to: "${MAIL_TO}",
+          subject: "LibVMA weekly DR build has ended - ${currentBuild.currentResult}",
+          body: """
+            <p><b>Version:</b> ${env.RELEASE_TAG ?: "NA"}</p>
+            <p><b>Weekly DR build:</b> <a href=${currentBuild.absoluteUrl}>${currentBuild.currentResult}</a></p>
+            """
+      }
