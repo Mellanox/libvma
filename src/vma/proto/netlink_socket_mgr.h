@@ -140,6 +140,16 @@ netlink_socket_mgr <Type>::netlink_socket_mgr(nl_data_t data_type)
 	if (orig_os_api.fcntl(m_fd, F_SETFD, FD_CLOEXEC) != 0) {
 		__log_warn("Fail in fctl, error = %d", errno);
 	}
+
+    const int fl_flags = orig_os_api.fcntl(m_fd, F_GETFL, 0);
+    if (fl_flags == -1) {
+        __log_warn("Fail in fctl, error = %d", errno);
+    }
+
+    if (orig_os_api.fcntl(m_fd, F_SETFL, fl_flags | O_NONBLOCK) != 0) {
+        __log_warn("Fail in fctl, error = %d", errno);
+    }
+    
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	__log_dbg("Done");
@@ -228,6 +238,9 @@ int netlink_socket_mgr <Type>::recv_info()
 		//Receive response from the kernel
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if((readLen = orig_os_api.recv(m_fd, buf_ptr, MSG_BUFF_SIZE - msgLen, 0)) < 0){
+            if (errno == EAGAIN) {
+                break;
+            }
 			__log_err("SOCK READ: ");
 			return -1;
 		}
