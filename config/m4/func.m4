@@ -1,7 +1,7 @@
 # func.m4 - Collection of functions
 # 
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2001-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2001-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #
 
