@@ -70,7 +70,7 @@ public:
 	virtual void 	notify_cb(event *ev);
 
 protected:
-	virtual bool	parse_enrty(nlmsghdr *nl_header, route_val *p_val);
+	virtual bool	parse_entry(struct nl_object *nl_obj, void *p_val_context);
 
 private:
 	// in constructor creates route_entry for each net_dev, to receive events in case there are no other route_entrys
@@ -80,7 +80,7 @@ private:
 	
 	// save current main rt table
 	void		update_tbl();
-	void		parse_attr(struct rtattr *rt_attribute, route_val *p_val);
+	void		parse_attr(struct rtnl_route *route, route_val *p_val);
 	
 	void		rt_mgr_update_source_ip();
 

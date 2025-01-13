@@ -235,87 +235,98 @@ void route_table_mgr::rt_mgr_update_source_ip()
 	}
 }
 
-bool route_table_mgr::parse_enrty(nlmsghdr *nl_header, route_val *p_val)
+bool route_table_mgr::parse_entry(struct nl_object *nl_obj, void *p_val_context)
 {
-	int len;
-	struct rtmsg *rt_msg;
-	struct rtattr *rt_attribute;
-
-	// get route entry header
-	rt_msg = (struct rtmsg *) NLMSG_DATA(nl_header);
+	route_val *p_val = static_cast<route_val *>(p_val_context);
+	// Cast the generic nl_object to a specific route or rule object
+	struct rtnl_route *route = reinterpret_cast<struct rtnl_route *>(nl_obj);
 
 	// we are not concerned about the local and default route table
-	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL)
+	if (rtnl_route_get_family(route) != AF_INET || rtnl_route_get_table(route) == RT_TABLE_LOCAL) {
 		return false;
-
-	p_val->set_protocol(rt_msg->rtm_protocol);
-	p_val->set_scope(rt_msg->rtm_scope);
-	p_val->set_type(rt_msg->rtm_type);
-	p_val->set_table_id(rt_msg->rtm_table);
-
-	in_addr_t dst_mask = htonl(VMA_NETMASK(rt_msg->rtm_dst_len));
-	p_val->set_dst_mask(dst_mask);
-	p_val->set_dst_pref_len(rt_msg->rtm_dst_len);
-
-	len = RTM_PAYLOAD(nl_header);
-	rt_attribute = (struct rtattr *) RTM_RTA(rt_msg);
-
-	for (;RTA_OK(rt_attribute, len);rt_attribute=RTA_NEXT(rt_attribute,len)) {
-		parse_attr(rt_attribute, p_val);
 	}
+
+	// Set protocol, scope, type, and table ID using libnl functions
+	p_val->set_protocol(rtnl_route_get_protocol(route));
+	p_val->set_scope(rtnl_route_get_scope(route));
+	p_val->set_type(rtnl_route_get_type(route));
+	p_val->set_table_id(rtnl_route_get_table(route));
+
+	// Set destination mask and prefix length
+	struct nl_addr *dst = rtnl_route_get_dst(route);
+	if (dst != nullptr) {
+		in_addr_t dst_mask = htonl(VMA_NETMASK(nl_addr_get_prefixlen(dst)));
+		p_val->set_dst_mask(dst_mask);
+		p_val->set_dst_pref_len(nl_addr_get_prefixlen(dst));
+	}
+
+	parse_attr(route, p_val);
+
 	p_val->set_state(true);
 	p_val->set_str();
 	return true;
 }
 
-void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
+static inline bool get_addr_from_nl_addr(struct nl_addr *addr, in_addr_t *p_addr)
 {
-	switch (rt_attribute->rta_type) {
-	case RTA_DST:
-		p_val->set_dst_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
-		break;
-	// next hop IPv4 address
-	case RTA_GATEWAY:
-		p_val->set_gw(*(in_addr_t *)RTA_DATA(rt_attribute));
-		break;
-	// unique ID associated with the network interface
-	case RTA_OIF:
-		p_val->set_if_index(*(int *)RTA_DATA(rt_attribute));
-		char if_name[IFNAMSIZ];
-		if_indextoname(p_val->get_if_index(),if_name);
-		p_val->set_if_name(if_name);
-		break;
-	case RTA_SRC:
-	case RTA_PREFSRC:
-		p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
-		break;
-	case RTA_TABLE:
-		p_val->set_table_id(*(uint32_t *)RTA_DATA(rt_attribute));
-		break;
-	case RTA_METRICS:
-	{
-		struct rtattr *rta = (struct rtattr *)RTA_DATA(rt_attribute);
-		int len = RTA_PAYLOAD(rt_attribute);
-		uint16_t type;
-		while (RTA_OK(rta, len)) {
-			type = rta->rta_type;
-			switch (type) {
-			case RTAX_MTU:
-				p_val->set_mtu(*(uint32_t *)RTA_DATA(rta));
-				break;
-			default:
-				rt_mgr_logdbg("got unexpected METRICS %d %x",
-					type, *(uint32_t *)RTA_DATA(rta));
-				break;
-			}
-			rta = RTA_NEXT(rta, len);
+	if (addr && nl_addr_get_family(addr) == AF_INET) {
+		void *binary_addr = nl_addr_get_binary_addr(addr);
+		unsigned int addr_len = nl_addr_get_len(addr);
+
+		if (binary_addr && addr_len == sizeof(in_addr_t)) {
+			memcpy(p_addr, binary_addr, sizeof(in_addr_t));
+			return true;
 		}
-		break;
 	}
-	default:
-		rt_mgr_logdbg("got unexpected type %d %x", rt_attribute->rta_type,
-				*(uint32_t *)RTA_DATA(rt_attribute));
-		break;
+	return false;
+}
+
+void route_table_mgr::parse_attr(struct rtnl_route *route, route_val *p_val)
+{
+	struct nl_addr *addr;
+
+	// Destination Address
+	addr = rtnl_route_get_dst(route);
+	in_addr_t dst_addr = 0;
+	if (get_addr_from_nl_addr(addr, &dst_addr) && dst_addr) {
+		p_val->set_dst_addr(dst_addr);
+	}
+
+	// Gateway Address (Next Hop)
+	struct rtnl_nexthop *nh = rtnl_route_nexthop_n(route, 0); // Assuming the first nexthop
+	in_addr_t gw_addr = 0;
+	if (nh && get_addr_from_nl_addr(rtnl_route_nh_get_gateway(nh), &gw_addr) && gw_addr) {
+		p_val->set_gw(gw_addr);
+	}
+
+    // Output Interface Index and Name
+	const int if_index = rtnl_route_nh_get_ifindex(nh);
+	if (if_index > 0) {
+		p_val->set_if_index(if_index);
+
+		char if_name[IFNAMSIZ] = {0};
+		if_indextoname(if_index, if_name);
+		p_val->set_if_name(if_name);
+	}
+
+	// Source Address
+	addr = rtnl_route_get_pref_src(route);
+	in_addr_t pref_src_addr = 0;
+	if (get_addr_from_nl_addr(addr, &pref_src_addr) && pref_src_addr) {
+		p_val->set_src_addr(pref_src_addr);
+	}
+
+	// Table ID
+	int table_id = rtnl_route_get_table(route);
+	p_val->set_table_id(table_id);
+
+	// Metrics (e.g., MTU)
+	uint32_t mtu = 0;
+	int get_metric_result = rtnl_route_get_metric(route, RTAX_MTU, &mtu);
+	if (get_metric_result == 0) {
+		if (mtu > 0) {
+			p_val->set_mtu(mtu);
+		}
 	}
 }
 

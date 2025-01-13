@@ -94,73 +94,75 @@ void rule_table_mgr::update_tbl()
 }
 
 // Parse received rule entry into custom object (rule_val).
-// Parameters: 
-//		nl_header	: object that contain rule entry.
+// Parameters:
+//		nl_obj	    : object that contain rule entry.
 //		p_val		: custom object that contain parsed rule data.
 // return true if its not related to local or default table, false otherwise.
-bool rule_table_mgr::parse_enrty(nlmsghdr *nl_header, rule_val *p_val)
+bool rule_table_mgr::parse_entry(struct nl_object *nl_obj, void *p_val_context)
 {
-	int len;
-	struct rtmsg *rt_msg;
-	struct rtattr *rt_attribute;
+	rule_val *p_val = static_cast<rule_val *>(p_val_context);
+	// Cast the generic nl_object to a specific route or rule object
+	struct rtnl_rule *rule = reinterpret_cast<struct rtnl_rule *>(nl_obj);
 
-	// get rule entry header
-	rt_msg = (struct rtmsg *) NLMSG_DATA(nl_header);
-
-	// we are not concerned about the local and default rule table
-	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL)
+	uint32_t table_id = rtnl_rule_get_table(rule);
+	if (rtnl_rule_get_family(rule) != AF_INET || table_id == RT_TABLE_LOCAL) {
 		return false;
-
-	p_val->set_protocol(rt_msg->rtm_protocol);
-	p_val->set_scope(rt_msg->rtm_scope);
-	p_val->set_type(rt_msg->rtm_type);
-	p_val->set_tos(rt_msg->rtm_tos);
-	p_val->set_table_id(rt_msg->rtm_table);
-
-	len = RTM_PAYLOAD(nl_header);
-	rt_attribute = (struct rtattr *) RTM_RTA(rt_msg);
-
-	for (;RTA_OK(rt_attribute, len);rt_attribute=RTA_NEXT(rt_attribute,len)) {
-		parse_attr(rt_attribute, p_val);
 	}
+
+	p_val->set_tos(rtnl_rule_get_dsfield(rule));
+	p_val->set_table_id(table_id);
+
+	parse_attr(rule, p_val);
+
 	p_val->set_state(true);
 	p_val->set_str();
 	return true;
 }
 
 // Parse received rule attribute for given rule.
-// Parameters: 
-//		rt_attribute	: object that contain rule attribute.
+// Parameters:
+//		rule	        : object that contain rule attribute.
 //		p_val			: custom object that contain parsed rule data.
-void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
+void rule_table_mgr::parse_attr(struct rtnl_rule *rule, rule_val *p_val)
 {
-	switch (rt_attribute->rta_type) {
-		case FRA_PRIORITY:
-			p_val->set_priority(*(uint32_t *)RTA_DATA(rt_attribute));
-			break;
-		case FRA_DST:
-			p_val->set_dst_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
-			break;
-		case FRA_SRC:
-			p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
-			break;
-		case FRA_IFNAME:
-			p_val->set_iif_name((char *)RTA_DATA(rt_attribute));
-			break;
-		case FRA_TABLE:
-			p_val->set_table_id(*(uint32_t *)RTA_DATA(rt_attribute));
-			break;
-#if DEFINED_FRA_OIFNAME
-		case FRA_OIFNAME:
-			p_val->set_oif_name((char *)RTA_DATA(rt_attribute));
-			break;
-#endif
-		default:
-			rr_mgr_logdbg("got undetected rta_type %d %x", rt_attribute->rta_type, *(uint32_t *)RTA_DATA(rt_attribute));
-			break;
+	// FRA_PRIORITY: Rule Priority
+	uint32_t priority = rtnl_rule_get_prio(rule);
+	if (priority) {
+		p_val->set_priority(priority);
 	}
-}
 
+	// FRA_DST: Destination Address
+	struct nl_addr *dst = rtnl_rule_get_dst(rule);
+	if (dst) {
+		p_val->set_dst_addr(*(in_addr_t *)nl_addr_get_binary_addr(dst));
+	}
+
+	// FRA_SRC: Source Address
+	struct nl_addr *src = rtnl_rule_get_src(rule);
+	if (src) {
+		p_val->set_src_addr(*(in_addr_t *)nl_addr_get_binary_addr(src));
+	}
+
+	// FRA_IFNAME: Input Interface Name
+	char *iif_name = rtnl_rule_get_iif(rule);
+	if (iif_name) {
+		p_val->set_iif_name(iif_name);
+	}
+
+	// FRA_TABLE: Table ID
+	uint32_t table_id = rtnl_rule_get_table(rule);
+	if (table_id) {
+		p_val->set_table_id(table_id);
+	}
+
+#if DEFINED_FRA_OIFNAME
+	// FRA_OIFNAME: Output Interface Name (if available)
+	char *oif_name = rtnl_rule_get_oif(rule);
+	if (oif_name) {
+		p_val->set_oif_name(oif_name);
+	}
+#endif
+}
 
 // Create rule entry object for given destination key and fill it with matching rule value from rule table.
 // Parameters: 
