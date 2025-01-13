@@ -53,9 +53,6 @@ public:
 
 	inline void set_dst_addr(in_addr_t const &dst_addr) 	{ m_dst_addr = dst_addr; };
 	inline void set_src_addr(in_addr_t const &src_addr) 	{ m_src_addr = src_addr; };
-	inline void set_protocol(unsigned char protocol) 	{ m_protocol = protocol; };
-	inline void set_scope(unsigned char scope) 		{ m_scope = scope; };
-	inline void set_type(unsigned char type) 		{ m_type = type; };
 	inline void set_tos(unsigned char tos) 			{ m_tos = tos; };
 	inline void set_table_id(uint32_t table_id) 		{ m_table_id = table_id; };
 	inline void set_iif_name(char *iif_name) 		{ memcpy(m_iif_name, iif_name, IFNAMSIZ); };
@@ -79,9 +76,6 @@ public:
 
 private:
 
-	unsigned char	m_protocol;
-	unsigned char	m_scope;
-	unsigned char	m_type;
 	unsigned char	m_tos;
 
 	union {

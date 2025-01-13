@@ -47,9 +47,6 @@
 
 rule_val::rule_val(): cache_observer()
 {
-	m_protocol = 0;
-	m_scope = 0;
-	m_type = 0;
 	m_dst_addr = 0;
 	m_src_addr = 0;
 	memset(m_oif_name, 0, IFNAMSIZ * sizeof(char));

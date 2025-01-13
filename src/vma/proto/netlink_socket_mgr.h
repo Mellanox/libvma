@@ -35,6 +35,7 @@
 #ifndef NETLINK_SOCKET_MGR_H
 #define NETLINK_SOCKET_MGR_H
 
+#include <cstddef>
 #include <unistd.h>
 #include <bits/sockaddr.h>
 #include <stdio.h>
@@ -49,6 +50,11 @@
 #include <netinet/ether.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <netlink/netlink.h>
+#include <netlink/msg.h>
+#include <netlink/route/route.h>
+#include <netlink/route/rule.h>
+#include <netlink/route/link.h>
 
 #include "utils/bullseye.h"
 #include "utils/lock_wrapper.h"
@@ -97,19 +103,19 @@ protected:
 
 	table_t m_tab;
 
-	virtual bool parse_enrty(nlmsghdr *nl_header, Type *p_val) = 0;
+	virtual bool parse_entry(struct nl_object *nl_obj, void *p_val_context) = 0;
 	virtual void update_tbl();
 	virtual void print_val_tbl();
 	
 	void	build_request(struct nlmsghdr **nl_msg);
 	bool	query(struct nlmsghdr *&nl_msg, int &len);
 	int	recv_info();
-	void	parse_tbl(int len, int *p_ent_num = NULL);
+	void	parse_tbl_from_latest_cache(struct nl_cache *cache_state);
 	
 private:
 	nl_data_t	m_data_type;
 
-	int 		m_fd; // netlink socket to communicate with the kernel
+	nl_sock 	*m_sock; // netlink socket to communicate with the kernel
 	uint32_t 	m_pid; // process pid
 	uint32_t 	m_seq_num; // seq num of the netlink messages
 	char 		m_msg_buf[MSG_BUFF_SIZE]; // we use this buffer for sending/receiving netlink messages
@@ -117,6 +123,7 @@ private:
 };
 
 /*********************************Implementation ********************************/
+
 
 template <typename Type>
 netlink_socket_mgr <Type>::netlink_socket_mgr(nl_data_t data_type)
@@ -132,14 +139,19 @@ netlink_socket_mgr <Type>::netlink_socket_mgr(nl_data_t data_type)
 
 	// Create Socket
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if ((m_fd = orig_os_api.socket(PF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE)) < 0) {
+	m_sock = nl_socket_alloc();
+	if (m_sock == nullptr) {
 		__log_err("NL socket Creation: ");
 		return;
 	}
 
-	if (orig_os_api.fcntl(m_fd, F_SETFD, FD_CLOEXEC) != 0) {
-		__log_warn("Fail in fctl, error = %d", errno);
+	if (nl_connect(m_sock, NETLINK_ROUTE) < 0) {
+		__log_err("NL socket Connection: ");
+		nl_socket_free(m_sock);
+		m_sock = nullptr;
+		return;
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	__log_dbg("Done");
@@ -149,161 +161,79 @@ template <typename Type>
 netlink_socket_mgr <Type>::~netlink_socket_mgr()
 {
 	__log_dbg("");
-	if (m_fd) {
-		orig_os_api.close(m_fd);
-		m_fd = -1;
+	if (m_sock != nullptr) {
+		nl_socket_free(m_sock);
+		m_sock = nullptr;
 	}
-	
+
 	__log_dbg("Done");
-}
-
-// This function build Netlink request to retrieve data (Rule, Route) from kernel.
-// Parameters : 
-//		nl_msg	: request to be returned  
-template <typename Type>
-void netlink_socket_mgr <Type>::build_request(struct nlmsghdr **nl_msg)
-{
-	struct rtmsg *rt_msg;
-
-	memset(m_msg_buf, 0, m_buff_size);
-
-	// point the header and the msg structure pointers into the buffer
-	*nl_msg = (struct nlmsghdr *)m_msg_buf;
-	rt_msg = (struct rtmsg *)NLMSG_DATA(*nl_msg);
-
-	//Fill in the nlmsg header
-	(*nl_msg)->nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
-	(*nl_msg)->nlmsg_seq = m_seq_num++;
-	(*nl_msg)->nlmsg_pid = m_pid;
-	rt_msg->rtm_family = AF_INET;
-
-	if (m_data_type == RULE_DATA_TYPE)
-	{
-		(*nl_msg)->nlmsg_type = RTM_GETRULE;
-	}
-	else if (m_data_type == ROUTE_DATA_TYPE)
-	{
-		(*nl_msg)->nlmsg_type = RTM_GETROUTE;
-	}
-	
-	(*nl_msg)->nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
-
-}
-
-// Query built request and receive requested data (Rule, Route)
-// Parameters: 
-//		nl_msg	: request that is built previously.
-//		len		: length of received data.
-template <typename Type>
-bool netlink_socket_mgr <Type>::query(struct nlmsghdr *&nl_msg, int &len)
-{
-	if(m_fd < 0)
-		return false;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if(orig_os_api.send(m_fd, nl_msg, nl_msg->nlmsg_len, 0) < 0){
-		__log_err("Write To Socket Failed...\n");
-		return false;
-	}
-	if((len = recv_info()) < 0) {
-		__log_err("Read From Socket Failed...\n");
-		return false;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	return true;
-}
-
-// Receive requested data and save it locally.
-// Return length of received data. 
-template <typename Type>
-int netlink_socket_mgr <Type>::recv_info()
-{
-	struct nlmsghdr *nlHdr;
-	int readLen = 0, msgLen = 0;
-
-	char *buf_ptr = m_msg_buf;
-
-	do{
-		//Receive response from the kernel
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if((readLen = orig_os_api.recv(m_fd, buf_ptr, MSG_BUFF_SIZE - msgLen, 0)) < 0){
-			__log_err("SOCK READ: ");
-			return -1;
-		}
-
-		nlHdr = (struct nlmsghdr *)buf_ptr;
-
-		//Check if the header is valid
-		if((NLMSG_OK(nlHdr, (u_int)readLen) == 0) || (nlHdr->nlmsg_type == NLMSG_ERROR))
-		{
-			__log_err("Error in received packet, readLen = %d, msgLen = %d, type=%d, bufLen = %d", readLen, nlHdr->nlmsg_len, nlHdr->nlmsg_type, MSG_BUFF_SIZE);
-			if (nlHdr->nlmsg_len == MSG_BUFF_SIZE) {
-				__log_err("The buffer we pass to netlink is too small for reading the whole table");
-			}
-			return -1;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		buf_ptr += readLen;
-		msgLen += readLen;
-
-		//Check if the its the last message
-		if(nlHdr->nlmsg_type == NLMSG_DONE ||
-		   (nlHdr->nlmsg_flags & NLM_F_MULTI) == 0) {
-			break;
-		}
-
-	} while((nlHdr->nlmsg_seq != m_seq_num) || (nlHdr->nlmsg_pid != m_pid));
-	return msgLen;
 }
 
 // Update data in a table
 template <typename Type>
 void netlink_socket_mgr <Type>::update_tbl()
 {
-	struct nlmsghdr *nl_msg = NULL;
-	int counter = 0;
-	int len = 0;
-
 	m_tab.entries_num = 0;
 
-	// Build Netlink request to get route entry
-	build_request(&nl_msg);
+	struct nl_cache *cache_state = nullptr;
+	int err = 0;
 
-	// Query built request and receive requested data
-	if (!query(nl_msg, len))
-		return;
+	// cache allocation fetches the latest existing rules/routes
+	if (m_data_type == RULE_DATA_TYPE) {
+		err = rtnl_rule_alloc_cache(m_sock, AF_INET, &cache_state);
+	} else if (m_data_type == ROUTE_DATA_TYPE) {
+		err = rtnl_route_alloc_cache(m_sock, AF_INET, 0, &cache_state);
+	}
+
+	if (err < 0) {
+		if (cache_state) {
+			nl_cache_free(cache_state);
+		}
+		
+		throw_vma_exception("Failed to allocate route cache");
+	}
 
 	// Parse received data in custom object (route_val)
-	parse_tbl(len, &counter);
+	parse_tbl_from_latest_cache(cache_state);
 
-	m_tab.entries_num = counter;
-
-	if (counter >= MAX_TABLE_SIZE) {
-		__log_warn("reached the maximum route table size");
+	if (cache_state) {
+			nl_cache_free(cache_state);
 	}
 }
 
 // Parse received data in a table
-// Parameters: 
+// Parameters:
 //		len				: length of received data.
 //		p_ent_num		: number of rows in received data.
 template <typename Type>
-void netlink_socket_mgr <Type>::parse_tbl(int len, int *p_ent_num)
+void netlink_socket_mgr<Type>::parse_tbl_from_latest_cache(struct nl_cache *cache_state)
 {
-	struct nlmsghdr *nl_header;
-	int entry_cnt = 0;
+	uint16_t entry_cnt = 0;
 
-	nl_header = (struct nlmsghdr *) m_msg_buf;
-	for(;NLMSG_OK(nl_header, (u_int)len) && entry_cnt < MAX_TABLE_SIZE; nl_header = NLMSG_NEXT(nl_header, len))
-	{
-		if (parse_enrty(nl_header, &m_tab.value[entry_cnt])) {
-			entry_cnt++;
-		}
+	struct nl_iterator_context {
+		Type *p_val_array;
+		uint16_t &entry_cnt;
+		netlink_socket_mgr<Type> *this_ptr;
+	} iterator_context = {m_tab.value, entry_cnt, this};
+
+	// a lambda can't be casted to a c-fptr with ref captures - so we provide context ourselves
+	nl_cache_foreach(
+		cache_state,
+		[](struct nl_object *nl_obj, void *context) {
+			nl_iterator_context *operation_context =
+				reinterpret_cast<nl_iterator_context *>(context);
+			const bool is_valid_entry = operation_context->this_ptr->parse_entry(
+				nl_obj, operation_context->p_val_array + operation_context->entry_cnt);
+			if (is_valid_entry) {
+				++operation_context->entry_cnt;
+			}
+		},
+		&iterator_context);
+
+	m_tab.entries_num = entry_cnt;
+	if (m_tab.entries_num >= MAX_TABLE_SIZE) {
+		__log_warn("reached the maximum route table size");
 	}
-	if (p_ent_num)
-		*p_ent_num = entry_cnt;
 }
 
 //print the table

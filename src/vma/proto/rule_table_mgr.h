@@ -55,12 +55,12 @@ public:
 	bool	 	rule_resolve(route_rule_table_key key, std::deque<uint32_t> &table_id_list);
 
 protected:
-	virtual bool	parse_enrty(nlmsghdr *nl_header, rule_val *p_val);
+	virtual bool	parse_entry(struct nl_object *nl_obj, void *p_val_context);
 	virtual void	update_tbl();
 	
 private:
 
-	void		parse_attr(struct rtattr *rt_attribute, rule_val *p_val);
+	void		parse_attr(struct rtnl_rule *rule, rule_val *p_val);
 	
 	bool		find_rule_val(route_rule_table_key key, std::deque<rule_val*>* &p_val);
 	bool 		is_matching_rule(route_rule_table_key rrk, rule_val* p_val);
