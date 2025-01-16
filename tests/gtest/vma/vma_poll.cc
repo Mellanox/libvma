@@ -81,7 +81,7 @@ TEST_F(vma_poll, ti_1) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 		ASSERT_EQ(EINPROGRESS, errno);
@@ -112,11 +112,10 @@ TEST_F(vma_poll, ti_1) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = listen(fd, 5);
-		ASSERT_EQ(EOK, errno);
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		ASSERT_EQ(1, rc);
@@ -126,6 +125,9 @@ TEST_F(vma_poll, ti_1) {
 		rc = 0;
 		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			if (rc == 0) {
+				continue;
+			}
 			if (vma_comps.events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
 				EXPECT_EQ(fd, (int)vma_comps.listen_fd);
 				fd_peer = (int)vma_comps.user_data;
@@ -166,7 +168,7 @@ TEST_F(vma_poll, ti_2) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 		ASSERT_EQ(0, rc);
@@ -193,11 +195,10 @@ TEST_F(vma_poll, ti_2) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = listen(fd, 5);
-		ASSERT_EQ(EOK, errno);
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		ASSERT_EQ(1, rc);
@@ -207,6 +208,9 @@ TEST_F(vma_poll, ti_2) {
 		rc = 0;
 		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			if (rc == 0) {
+				continue;
+			}
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
@@ -264,7 +268,7 @@ TEST_F(vma_poll, ti_3) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 		ASSERT_EQ(0, rc);
@@ -292,11 +296,10 @@ TEST_F(vma_poll, ti_3) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = listen(fd, 5);
-		ASSERT_EQ(EOK, errno);
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		ASSERT_EQ(1, rc);
@@ -306,6 +309,9 @@ TEST_F(vma_poll, ti_3) {
 		rc = 0;
 		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			if (rc == 0) {
+				continue;
+			}
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
@@ -367,7 +373,7 @@ TEST_F(vma_poll, ti_4) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = sendto(fd, (void *)msg, sizeof(msg), 0,
 				(struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -388,7 +394,7 @@ TEST_F(vma_poll, ti_4) {
 		ASSERT_LE(0, fd);
 
 		rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-		ASSERT_EQ(0, rc);
+		CHECK_ERR_OK(rc);
 
 		rc = vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		ASSERT_EQ(1, rc);
@@ -398,6 +404,9 @@ TEST_F(vma_poll, ti_4) {
 		rc = 0;
 		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			if (rc == 0) {
+				continue;
+			}
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
