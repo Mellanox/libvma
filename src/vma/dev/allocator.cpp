@@ -128,8 +128,9 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 	case ALLOC_TYPE_EXTERNAL:
 		ptr = m_memalloc(size);
 		if (NULL == ptr) {
-			__log_info_dbg("Failed allocating using external functions, "
-				       "falling back to another memory allocation method");
+			__log_info_warn("Failed allocating using external functions, "
+				       "falling back to another memory allocation method"
+					   "(errno=%d %m)", errno);
 		} else {
 			m_data_block = ptr;
 			m_length = size;

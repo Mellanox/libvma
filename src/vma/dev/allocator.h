@@ -43,9 +43,6 @@ typedef std::unordered_map<ib_ctx_handler*, uint32_t> lkey_map_ib_ctx_map_t;
 
 class vma_allocator {
 public:
-	typedef void* (*alloc_t)(size_t);
-	typedef void (*free_t)(void*);
-public:
 	vma_allocator();
 	vma_allocator(alloc_t alloc_func, free_t free_func);
 	~vma_allocator();
