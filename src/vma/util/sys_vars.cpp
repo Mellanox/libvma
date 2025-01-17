@@ -77,7 +77,7 @@
 
 void check_netperf_flags();
 
-// Do not rely on global variable initialization in code that might be called from library constructor (main_init)
+// Do not rely on global variable initialization in code that might be called from library constructor
 mce_sys_var & safe_mce_sys() {return mce_sys_var::instance();}
 
 #define MAX_BACKTRACE		25

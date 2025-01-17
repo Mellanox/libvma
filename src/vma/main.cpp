@@ -49,6 +49,7 @@
 #include <linux/igmp.h>
 
 #include "vlogger/vlogger.h"
+#include "utils/compiler.h"
 #include "utils/rdtsc.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/utils.h"
@@ -872,13 +873,31 @@ void check_netperf_flags()
         }
 }
 
-//-----------------------------------------------------------------------------
-//  library init function
-//-----------------------------------------------------------------------------
-// __attribute__((constructor)) causes the function to be called when
-// library is firsrt loaded
-//extern "C" int __attribute__((constructor)) sock_redirect_lib_load_constructor(void)
-extern "C" int main_init(void)
+/*
+ * -----------------------------------------------------------------------------
+ * library init/exit function
+ * sock_redirect_lib_load_constructor(void) is used to be called when
+ * library is loaded
+ * sock_redirect_lib_load_destructor(void) is used to be called when
+ * library is unloaded
+ *
+ * Note:
+ * The POSIX standard actually does not require dlclose() to ever unload a library
+ * from address space on function return.
+ * See: https://pubs.opengroup.org/onlinepubs/007904975/functions/dlclose.html
+ * That means other than invalidating the handle, dlclose() can not required to
+ * do anything at all and real unloading can be delayed.
+ * It can be important in case owner application uses the library resources.
+ * Workaround:
+ * - vma_exit symbol should be visible
+ * - call dlclose(handle)
+ * - call dlopen("library", RTLD_NOW | RTLD_NOLOAD) to check if the library is in memory
+ * - do nothing in case library is unloaded
+ *   or
+ *   call vma_exit() to force the library finalization
+ * -----------------------------------------------------------------------------
+ */
+extern "C" int vma_init(void)
 {
 
 	get_orig_funcs();
@@ -907,8 +926,12 @@ extern "C" int main_init(void)
 	return 0;
 }
 
-//extern "C" int __attribute__((destructor)) sock_redirect_lib_load_destructor(void)
-extern "C" int main_destroy(void)
+extern "C" EXPORT_SYMBOL int vma_exit(void)
 {
-	return free_libvma_resources();
+    int rc = 0;
+    if (g_init_global_ctors_done) {
+        rc = free_libvma_resources();
+        g_init_global_ctors_done = false;
+    }
+    return rc;
 }
