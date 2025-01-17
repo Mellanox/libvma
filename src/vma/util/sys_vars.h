@@ -66,9 +66,13 @@ typedef enum {
 	ALLOC_TYPE_ANON = 0,
 	ALLOC_TYPE_CONTIG,
 	ALLOC_TYPE_HUGEPAGES,
+	ALLOC_TYPE_EXTERNAL,
 	ALLOC_TYPE_LAST_ALLOWED_TO_USE,
-	ALLOC_TYPE_EXTERNAL, /* not allowed as a global parameter */
+	ALLOC_TYPE_REGISTER_MEMORY /* not allowed as a global parameter */
 } alloc_mode_t;
+
+typedef void* (*alloc_t)(size_t);
+typedef void (*free_t)(void*);
 
 typedef enum {
 	TS_CONVERSION_MODE_DISABLE = 0, // TS_CONVERSION_MODE_DISABLE must be the first enum
@@ -416,6 +420,10 @@ public:
 	bool		rx_poll_on_tx_tcp;
 	hyper_t		hypervisor;
 	bool		trigger_dummy_send_getsockname;
+	/* This field should be used to store and use data for VMA_EXTRA_API_IOCTL */
+	struct {
+		vma_cmsg_ioctl_user_alloc_t user_alloc;
+	} m_ioctl;
 private:
 	void print_vma_load_failure_msg();
 	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);

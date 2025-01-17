@@ -102,6 +102,12 @@
 #define EOK 0         /* no error */
 #endif
 
+#define CHECK_ERR_OK(rc)                                                                           \
+	EXPECT_EQ(0, (rc));                                                                            \
+	if ((rc) < 0) {                                                                                \
+		ASSERT_EQ(EOK, errno);                                                                     \
+	}
+
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure
