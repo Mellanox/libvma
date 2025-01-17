@@ -54,6 +54,38 @@
 #define SO_VMA_FLOW_TAG         2820
 #define SO_VMA_SHUTDOWN_RX      2821
 
+enum {
+	/* cmsg_level is SOL_SOCKET as protocol independent option
+	 * cmsg_data has data in vma_cmsg_ioctl_user_alloc_t format
+	 */
+	CMSG_VMA_IOCTL_USER_ALLOC = 2900
+};
+
+/**
+ * @brief This structure as an argument for vma_ioctl() call with
+ *  @ref CMSG_VMA_IOCTL_USER_ALLOC to use user provided functions for
+ *  internal pool allocation.
+ * 
+ * @note CMSG_VMA_IOCTL_USER_ALLOC must be called before the library
+ * initialization that is done during first call of following functions
+ * as socket(), epoll_create(), epoll_create1(), pipe().
+ *
+ * @param flags - set a internal memory pool to apply.
+ * @param memalloc - ponter to the function to allocate memory.
+ * @param memfree - ponter to the function to free previously allocated memory.
+ */
+
+enum {
+	VMA_IOCTL_USER_ALLOC_FLAG_TX = (1 << 0),
+	VMA_IOCTL_USER_ALLOC_FLAG_RX = (1 << 1)
+};
+
+struct __attribute__ ((packed)) vma_cmsg_ioctl_user_alloc_t {
+	uint8_t flags;
+	void* (*memalloc)(size_t);
+	void (*memfree)(void *);
+};
+
 /*
  * Flags for Dummy send API
  */
@@ -367,6 +399,7 @@ typedef enum {
 	VMA_EXTRA_API_REGISTER_MEMORY_ON_RING        = (1 << 17),
 	VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING      = (1 << 18),
 	VMA_EXTRA_API_MODIFY_RING                    = (1 << 20),
+	VMA_EXTRA_API_IOCTL                          = (1 << 21),
 } vma_extra_api_mask;
 
 /** 
@@ -716,6 +749,22 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	uint64_t vma_extra_supported_mask;
 
+	/**
+	 * This function allows to communicate with library using extendable protocol
+	 * based on struct cmshdr.
+	 *
+	 * Ancillary data is a sequence of cmsghdr structures with appended data.
+	 * The sequence of cmsghdr structures should never be accessed directly.
+	 * Instead, use only the following macros: CMSG_ALIGN, CMSG_SPACE, CMSG_DATA,
+	 * CMSG_LEN.
+	 *
+	 * @param cmsg_hdr - point to control message
+	 * @param cmsg_len - the byte count of the ancillary data,
+	 *                   which contains the size of the structure header.
+	 *
+	 * @return -1 on failure and 0 on success
+	 */
+	int (*ioctl)(void *cmsg_hdr, size_t cmsg_len);
 };
 
 /**

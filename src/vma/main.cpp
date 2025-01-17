@@ -704,10 +704,12 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_buffer_pool_rx, buffer_pool(safe_mce_sys().rx_num_bufs,
 			RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()),
-			buffer_pool::free_rx_lwip_pbuf_custom));
+			buffer_pool::free_rx_lwip_pbuf_custom,
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_RX ? safe_mce_sys().m_ioctl.user_alloc.memalloc : NULL),
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_RX ? safe_mce_sys().m_ioctl.user_alloc.memfree : NULL)));
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
- #ifdef DEFINED_TSO
+#ifdef DEFINED_TSO
 	safe_mce_sys().tx_buf_size = MIN((int)safe_mce_sys().tx_buf_size, (int)0xFF00);
  	if (safe_mce_sys().tx_buf_size <= get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss)) {
  		safe_mce_sys().tx_buf_size = 0;
@@ -716,11 +718,15 @@ static void do_global_ctors_helper()
  			TX_BUF_SIZE(safe_mce_sys().tx_buf_size ?
  					safe_mce_sys().tx_buf_size :
 					get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss)),
-			buffer_pool::free_tx_lwip_pbuf_custom));
+			buffer_pool::free_tx_lwip_pbuf_custom,
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_TX ? safe_mce_sys().m_ioctl.user_alloc.memalloc : NULL),
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_TX ? safe_mce_sys().m_ioctl.user_alloc.memfree : NULL)));
 #else
  	NEW_CTOR(g_buffer_pool_tx, buffer_pool(safe_mce_sys().tx_num_bufs,
 			TX_BUF_SIZE(get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss)),
-			buffer_pool::free_tx_lwip_pbuf_custom));
+			buffer_pool::free_tx_lwip_pbuf_custom,
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_TX ? safe_mce_sys().m_ioctl.user_alloc.memalloc : NULL),
+			(safe_mce_sys().m_ioctl.user_alloc.flags & VMA_IOCTL_USER_ALLOC_FLAG_TX ? safe_mce_sys().m_ioctl.user_alloc.memfree : NULL)));
 #endif /* DEFINED_TSO */
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 

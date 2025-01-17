@@ -128,9 +128,9 @@ void assign_dlsym(T &ptr, const char *name) {
 		} \
 	}
 
-#define SET_EXTRA_API(dst, func, mask) do { \
-		vma_api->dst = func; \
-		vma_api->vma_extra_supported_mask |= mask; \
+#define SET_EXTRA_API(__dst, __func, __mask) do { \
+		vma_api->__dst = __func; \
+		vma_api->vma_extra_supported_mask |= __mask; \
 } while(0);
 
 #define VERIFY_PASSTROUGH_CHANGED(__ret, __func_and_params__) do { \
@@ -145,7 +145,6 @@ void get_orig_funcs()
 {
 	// Save pointer to original functions
 	GET_ORIG_FUNC(socket);
-	GET_ORIG_FUNC(close);
 	GET_ORIG_FUNC(close);
 	GET_ORIG_FUNC(__res_iclose);
 	GET_ORIG_FUNC(shutdown);
@@ -762,6 +761,52 @@ int vma_dereg_mr_on_ring(int __fd, void *addr, size_t length)
 	}
 }
 
+static inline struct cmsghdr * __cmsg_nxthdr(void *__ctl, size_t __size, struct cmsghdr *__cmsg)
+{
+	struct cmsghdr * __ptr;
+
+	__ptr = (struct cmsghdr*)(((unsigned char *) __cmsg) +  CMSG_ALIGN(__cmsg->cmsg_len));
+	if ((unsigned long)((char*)(__ptr + 1) - (char *) __ctl) > __size) {
+		return NULL;
+	}
+
+	return __ptr;
+}
+
+extern "C"
+int vma_ioctl(void *cmsg_hdr, size_t cmsg_len)
+{
+	struct cmsghdr *cmsg = (struct cmsghdr *)cmsg_hdr;
+
+	for (; cmsg; cmsg = __cmsg_nxthdr((struct cmsghdr *)cmsg_hdr, cmsg_len, cmsg)) {
+		if (cmsg->cmsg_type == CMSG_VMA_IOCTL_USER_ALLOC) {
+
+			if (!g_init_global_ctors_done &&
+				(cmsg->cmsg_len - CMSG_LEN(0)) ==
+					(sizeof(uint8_t) + sizeof(alloc_t) + sizeof(free_t))) {
+				uint8_t *ptr = (uint8_t *)CMSG_DATA(cmsg);
+
+				memcpy(&safe_mce_sys().m_ioctl.user_alloc.flags, ptr, sizeof(uint8_t));
+				ptr += sizeof(uint8_t);
+				memcpy(&safe_mce_sys().m_ioctl.user_alloc.memalloc, ptr, sizeof(alloc_t));
+				ptr += sizeof(alloc_t);
+				memcpy(&safe_mce_sys().m_ioctl.user_alloc.memfree, ptr, sizeof(free_t));
+				if (!(safe_mce_sys().m_ioctl.user_alloc.memalloc && safe_mce_sys().m_ioctl.user_alloc.memfree) ||
+					!(safe_mce_sys().m_ioctl.user_alloc.flags & (VMA_IOCTL_USER_ALLOC_FLAG_TX | VMA_IOCTL_USER_ALLOC_FLAG_RX))) {
+					srdr_logdbg("Invalid data for CMSG_VMA_IOCTL_USER_ALLOC\n");
+					errno = EINVAL;
+					return -1;
+				}
+			} else {
+				errno = EINVAL;
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -1103,6 +1148,7 @@ int getsockopt(int __fd, int __level, int __optname,
 			SET_EXTRA_API(socketxtreme_free_vma_buff, enable_socketxtreme ? vma_socketxtreme_free_vma_buff : dummy_vma_socketxtreme_free_vma_buff, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF);
 			SET_EXTRA_API(dump_fd_stats, vma_dump_fd_stats, VMA_EXTRA_API_DUMP_FD_STATS);
 			SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
+			SET_EXTRA_API(ioctl, vma_ioctl, VMA_EXTRA_API_IOCTL);
 		}
 
 		*((vma_api_t **)__optval) = vma_api;
