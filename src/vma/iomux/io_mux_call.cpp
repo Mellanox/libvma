@@ -171,7 +171,6 @@ io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	m_n_sysvar_select_skip_os_fd_check(safe_mce_sys().select_skip_os_fd_check),
 	m_n_sysvar_select_poll_os_ratio(safe_mce_sys().select_poll_os_ratio),
 	m_n_sysvar_select_poll_num(safe_mce_sys().select_poll_num),
-	m_b_sysvar_select_poll_os_force(safe_mce_sys().select_poll_os_force),
 	m_b_sysvar_select_handle_cpu_usage_stats(safe_mce_sys().select_handle_cpu_usage_stats),
 	m_p_all_offloaded_fds(off_fds_buffer),
 	m_p_offloaded_modes(off_modes_buffer),
@@ -469,8 +468,7 @@ int io_mux_call::call()
 
 	__log_funcall("");
 
-	if (!m_b_sysvar_select_poll_os_force  // TODO: evaluate/consider this logic
-			&& (*m_p_num_all_offloaded_fds == 0))
+	if (*m_p_num_all_offloaded_fds == 0)
 	{
 		// 1st scenario
 		timer_update();

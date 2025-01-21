@@ -627,8 +627,8 @@ Where value of 0 is used for no polling (interrupt driven)
 Default value is 100000
 
 VMA_SELECT_POLL_OS_FORCE
-This flag forces to poll the OS file descriptors while user thread calls
-select(), poll() or epoll_wait() even when no offloaded sockets are mapped.
+NOTE: 
+This is a DEPRECATED configuration parameter that will be removed from future libvma releases.
 Enabling this flag causes VMA to set VMA_SELECT_POLL_OS_RATIO and
 VMA_SELECT_SKIP_OS to 1. This will result in VMA_SELECT_POLL number of
 times VMA will poll the OS file descriptors, along side with offloaded
