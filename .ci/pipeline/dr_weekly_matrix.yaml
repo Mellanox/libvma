@@ -41,7 +41,7 @@ steps:
     shell: action
     module: groovy
     run: |
-      def job = Jenkins.instance.getItemByFullName('libvma/LibVMA-release-dr')
+      def job = Jenkins.instance.getItemByFullName('libvma/LibVMA-release')
       if (!job.isBuildable()) {
           echo "The job '${env.JOB}' is disabled. Enabling..."
           job.setDisabled(false)
@@ -54,7 +54,7 @@ steps:
     run: |
       echo "Release tag we're building on: ${env.RELEASE_TAG}"
       if (env.RELEASE_TAG) {
-        def build = build job: 'libvma/LibVMA-release-dr',
+        def build = build job: 'libvma/LibVMA-release',
           parameters: [
             string(name: 'release_tag', value: RELEASE_TAG),
             string(name: 'release_folder', value: "${release_folder}"),
