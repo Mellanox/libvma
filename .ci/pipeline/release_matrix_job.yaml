@@ -26,9 +26,9 @@ runs_on_dockers:
       file: '.ci/dockerfiles/Dockerfile.rhel8.6.release',
       name: 'rhel8.6',
       uri: '$arch/$name/release',
-      build_args: '--no-cache --build-arg WEBREPO_URL=$WEBREPO_URL',
+      build_args: '--no-cache',
       arch: 'x86_64',
-      tag: '20241105'
+      tag: '20250128'
     }
 
 steps:

@@ -1,6 +1,6 @@
 ARG HARBOR_URL=nbu-harbor.gtm.nvidia.com
 FROM $HARBOR_URL/hpcx/x86_64/rhel8.6/core:latest
-ARG WEBREPO_URL=webrepo.mtr.labs.mlnx
+ARG WEBREPO_URL=webrepo.gtm.nvidia.com
 ARG _UID=6213
 ARG _GID=101
 ARG _LOGIN=swx-jenkins
