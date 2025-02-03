@@ -8,9 +8,9 @@ registry_auth: swx-storage
 
 kubernetes:
   privileged: true
-  cloud: swx-k8s-spray
+  cloud: il-ipp-blossom-prod
+  namespace: swx-media
   nodeSelector: 'beta.kubernetes.io/os=linux'
-
   limits: '{memory: 8Gi, cpu: 8000m}'
   requests: '{memory: 8Gi, cpu: 8000m}'
 
