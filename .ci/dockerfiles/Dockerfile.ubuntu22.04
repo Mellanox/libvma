@@ -1,0 +1,35 @@
+ARG ARCH=x86_64
+FROM harbor.mellanox.com/hpcx/$ARCH/ubuntu22.04/base AS build
+FROM build AS tests
+RUN apt-get update && \
+    apt-get install -y \
+    net-tools unzip iproute2 wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM tests AS vg
+RUN apt-get update && \
+    apt-get install -y \
+    valgrind \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM tests AS test
+RUN apt-get update && \
+    apt-get install -y \
+    openssh-server psmisc \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# setup ssh server and passwordless login for root for tests flows (verifyer.pl)
+RUN mkdir -p /var/run/sshd ~/.ssh && \
+    rm -rf ~/.ssh/id_rsa* && ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa && \
+    cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys && \
+    sed -i 's|#PermitRootLogin.*|PermitRootLogin without-password|g' /etc/ssh/sshd_config && \
+    sed -i 's|#PasswordAuthentication.*|PasswordAuthentication no|g' /etc/ssh/sshd_config && \
+    echo "Host *" >> ~/.ssh/config && \
+    echo "   StrictHostKeyChecking no" >> ~/.ssh/config && \
+    echo "   UserKnownHostsFile /dev/null" >> ~/.ssh/config && \
+    echo "   LogLevel ERROR" >> ~/.ssh/config
+FROM tests AS gtest
+FROM build AS style
+RUN apt-get update \
+ && apt-get install -y clang-15 clang-format-15 \
+ && update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-15 100 \
+ && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 \
+                    --slave /usr/bin/clang++ clang++ /usr/bin/clang++-15 \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
