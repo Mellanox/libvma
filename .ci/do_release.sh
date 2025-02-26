@@ -49,6 +49,7 @@ MAJOR_VERSION=$(grep -e "define(\[prj_ver_major\]" configure.ac | awk '{ printf 
 MINOR_VERSION=$(grep -e "define(\[prj_ver_minor\]" configure.ac | awk '{ printf $2 };' | sed  's/)//g')
 REVISION_VERSION=$(grep -e "define(\[prj_ver_revision\]" configure.ac | awk '{ printf $2 };' | sed  's/)//g')
 configure_ac_version="${MAJOR_VERSION}.${MINOR_VERSION}.${REVISION_VERSION}"
+DST_DIR=${release_folder}/vma_v_${release_tag}-0/src
 echo "FULL_VERSION from configure.ac: [${configure_ac_version}]"
 
 if [[ "${release_tag}" != "${configure_ac_version}" ]]; then
@@ -57,11 +58,10 @@ if [[ "${release_tag}" != "${configure_ac_version}" ]]; then
 fi
 
 if [ "${do_release}" = true ] ; then
-    echo "do_release is set to true, will release package into ${release_folder}/libvma_v_${release_tag}-0/src"
+    echo "do_release is set to true, will release package into ${DST_DIR}"
 
     cd pkg/packages || { echo "pkg folder is missing, exiting..."; exit 1; }
     pkg_name=$(ls -1 libvma-"${release_tag}"-"${revision}".src.rpm)
-    DST_DIR=${release_folder}/libvma_v_${release_tag}-0/src
 
     if [[ -e "${DST_DIR}/${pkg_name}" ]]; then 
         echo "ERROR: [${DST_DIR}/${pkg_name}] file already exist. Exit"
@@ -70,6 +70,7 @@ if [ "${do_release}" = true ] ; then
 
     sudo -E -u swx-jenkins mkdir -p "$DST_DIR"
     sudo -E -u swx-jenkins cp -v "${pkg_name}" "$DST_DIR"
+    sudo -E -u swx-jenkins ln -s "${DST_DIR}/${pkg_name}" "${release_folder}/source_rpms/${pkg_name}"
     echo "Release found at $DST_DIR"
 else
      echo "do_release is set to false, skipping package release."
