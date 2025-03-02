@@ -1,0 +1,37 @@
+ARG HARBOR_URL=nbu-harbor.gtm.nvidia.com
+ARG ARCH=x86_64
+FROM $HARBOR_URL/swx-infra/media/$ARCH/base/rhel:9.4
+ARG WEBREPO_URL=webrepo.gtm.nvidia.com
+ARG ARCH
+ARG _UID=6213
+ARG _GID=101
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+
+RUN sed -i "s#http://webrepo#http://${WEBREPO_URL}#" /etc/yum.repos.d/* && \
+    sed -i 's/mirrorlist/#mirrorlist/;s!#baseurl=http://mirror.centos.org!baseurl=http://vault.centos.org!' /etc/yum.repos.d/* && \
+    echo "[mlnx-9.4-BaseOS]" > /etc/yum.repos.d/mlnx-9.4-BaseOS.repo && \
+    echo "name=RHEL 9.4 mirror BaseOS" >> /etc/yum.repos.d/mlnx-9.4-BaseOS.repo && \
+    echo "baseurl=http://${WEBREPO_URL}/RH/9.4/$ARCH/BaseOS/" >> /etc/yum.repos.d/mlnx-9.4-BaseOS.repo && \
+    echo "enabled=1" >> /etc/yum.repos.d/mlnx-9.4-BaseOS.repo && \
+    echo "gpgcheck=0" >> /etc/yum.repos.d/mlnx-9.4-BaseOS.repo && \
+    echo "[mlnx-9.4-AppStream]" > /etc/yum.repos.d/mlnx-9.4-AppStream.repo && \
+    echo "name=RHEL 9.4 mirror AppStream" >> /etc/yum.repos.d/mlnx-9.4-AppStream.repo && \
+    echo "baseurl=http://${WEBREPO_URL}/RH/9.4/$ARCH/AppStream/" >> /etc/yum.repos.d/mlnx-9.4-AppStream.repo && \
+    echo "enabled=1" >> /etc/yum.repos.d/mlnx-9.4-AppStream.repo && \
+    echo "gpgcheck=0" >> /etc/yum.repos.d/mlnx-9.4-AppStream.repo && \
+    yum makecache
+
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    mkdir -p ${_HOME} && \
+    groupadd -f -g "$_GID" "$_LOGIN" && \
+    useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "${_LOGIN}" && \
+    chown -R ${_LOGIN} ${_HOME}
+
+RUN dnf install --allowerasing -y \
+    git autoconf automake libtool gcc \
+    sudo gcc-c++ libibverbs-devel rdma-core \
+    librdmacm unzip patch wget make \
+    libnl3-devel rpm-build && \
+    dnf clean all && rm -rf /var/cache/dnf/*

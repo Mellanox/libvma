@@ -4,7 +4,8 @@ job: LIBVMA
 step_allow_single_selector: false
 
 registry_host: harbor.mellanox.com
-registry_auth: swx-storage
+registry_auth: swx-infra_harbor_credentials
+registry_path: /swx-infra/media
 
 kubernetes:
   privileged: true
@@ -33,6 +34,7 @@ runs_on_dockers:
 # doca-host
   - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
   - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel9.4-aarch64', file: '.ci/dockerfiles/Dockerfile.rhel9.4', category: 'base', arch: 'aarch64', tag: '20250203', uri: 'vma/$arch/$name/build', build_args: '--build-arg ARCH=aarch64 --no-cache'}
   - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
   - {name: 'ub24.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu24.04/base', category: 'base', arch: 'aarch64'}
   - {name: 'sl15sp4-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/sles15sp4/base', category: 'base', arch: 'x86_64'}
