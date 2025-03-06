@@ -21,6 +21,9 @@ volumes:
   # User profile for release
   - {mountPath: /var/home/swx-jenkins, hostPath: /labhome/swx-jenkins}
 
+empty_volumes:
+  - {mountPath: /tmp/source_rpms, memory: true}
+
 runs_on_dockers:
   - {
       file: '.ci/dockerfiles/Dockerfile.rhel8.6.release',
