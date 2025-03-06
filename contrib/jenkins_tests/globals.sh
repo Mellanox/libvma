@@ -75,6 +75,16 @@ function do_archive()
     set -e
 }
 
+function do_hugepages()
+{
+	if [[ -f /.dockerenv && ! $(grep -q hugetlbfs /proc/mounts) ]]; then
+        mkdir -p /mnt/huge
+        mount -t hugetlbfs nodev /mnt/huge
+        grep hugetlbfs /proc/mounts
+        echo $?
+    fi
+}
+
 # Test if an environment module exists and load it if yes.
 # Otherwise, return error code.
 # $1 - module name

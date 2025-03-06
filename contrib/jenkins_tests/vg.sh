@@ -2,9 +2,10 @@
 
 source $(dirname $0)/globals.sh
 
-echo "Checking for valgrind ..."
+# Fix hugepages for docker environments
+do_hugepages
 
-#do_module "tools/valgrind-3.12.0"
+echo "Checking for valgrind ..."
 
 set +eE
 
@@ -24,9 +25,14 @@ test_ip_list=""
 #if [ ! -z $(do_get_ip 'ib') ]; then
 #	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib')"
 #fi
-if [ ! -z "$(do_get_ip 'eth')" ]; then
-	test_ip_list="${test_ip_list} eth_ip4:$(do_get_ip 'eth')"
+if [[ -f /.dockerenv ]] || [[ -f /run/.containerenv ]] || [[ -n "${KUBERNETES_SERVICE_HOST}" ]]; then
+	test_ip_list="eth_ip4:$(ip -f inet addr show net1 | awk '/inet / {print $2}' | cut -d/ -f1)"
+else
+	if [ ! -z "$(do_get_ip 'eth')" ]; then
+		test_ip_list="${test_ip_list} eth_ip4:$(do_get_ip 'eth')"
+	fi
 fi
+
 test_list="tcp:--tcp udp:"
 test_lib=${vg_dir}/install/lib/${prj_lib}
 test_app=sockperf
