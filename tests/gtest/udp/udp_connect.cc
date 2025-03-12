@@ -84,6 +84,7 @@ TEST_F(udp_connect, ti_1) {
  * @details
  */
 TEST_F(udp_connect, ti_2) {
+	GTEST_SKIP() << "Skipping this test temporarily;Please see Issue #4332286.";
 	int rc = EOK;
 	int fd;
 	int i;

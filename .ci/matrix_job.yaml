@@ -45,9 +45,58 @@ runs_on_dockers:
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.51', category: 'tool', arch: 'x86_64', tag: '0.0.51'}
-
-runs_on_agents:
-  - {nodeLabel: 'beni09', category: 'base'}
+# tests
+  - {
+      file: '.ci/dockerfiles/Dockerfile.ubuntu22.04',
+      arch: 'x86_64',
+      name: 'test',
+      uri: 'vma/$arch/ubuntu22.04/$name',
+      tag: '20250219',
+      build_args: '--no-cache --target test',
+      category: 'tests',
+      annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p1' }],
+      limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p1: 1}',
+      requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p1: 1}',
+      caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
+      runAsUser: '0',
+      runAsGroup: '0',
+      cloud: swx-k8s-spray,
+      namespace: default
+    }
+  - {
+     file: '.ci/dockerfiles/Dockerfile.ubuntu22.04',
+     arch: 'x86_64',
+     name: 'vg',
+     uri: 'vma/$arch/ubuntu22.04/$name',
+     tag: '20250219',
+     build_args: '--no-cache --target vg',
+     category: 'tool',
+     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p2' }],
+     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p2: 1}',
+     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p2: 1}',
+     caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
+     runAsUser: '0',
+     runAsGroup: '0',
+     cloud: swx-k8s-spray,
+     namespace: default
+    }
+  - {
+     file: '.ci/dockerfiles/Dockerfile.ubuntu22.04',
+     arch: 'x86_64',
+     name: 'gtest',
+     uri: 'vma/$arch/ubuntu22.04/$name',
+     tag: '20250219',
+     build_args: '--no-cache --target gtest',
+     category: 'tests',
+     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p1@net1,sriov-cx6dx-p2@net2' }],
+     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, mellanox.com/sriov_cx6dx_p1: 1, mellanox.com/sriov_cx6dx_p2: 1}',
+     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, mellanox.com/sriov_cx6dx_p1: 1, mellanox.com/sriov_cx6dx_p2: 1}',
+     caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
+     runAsUser: '0',
+     runAsGroup: '0',
+     cloud: swx-k8s-spray,
+     namespace: default
+    }
 
 matrix:
   axes:
@@ -64,6 +113,12 @@ env:
 
 steps:
   - name: Setup
+    containerSelector:
+      - "{category: 'base'}"
+      - "{name: 'test', variant:1}"
+      - "{name: 'gtest', variant:1}"
+      - "{name: 'vg', variant:1}"
+      - "{name: 'style'}"
     run: |
       set +x
       echo
@@ -92,27 +147,34 @@ steps:
   - name: Install Doca-host
     containerSelector:
       - "{category: 'base'}"
+      - "{name: 'test', variant:1}"
+      - "{name: 'gtest', variant:1}"
+      - "{name: 'vg', variant:1}"
+      - "{name: 'style'}"
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
     run: |
       echo "Installing DOCA: ${DOCA_VERSION} ..."
       .ci/scripts/doca_install.sh 
-
-  - name: Install Doca-host on Tools
-    run: |
-      echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
-    containerSelector:
-      - "{name: 'style', category: 'tool'}"
-    agentSelector:
-      - "{nodeLabel: 'skip-agent'}"
 
   - name: Autogen
+    containerSelector:
+      - "{category: 'base'}"
+      - "{name: 'test', variant:1}"
+      - "{name: 'gtest', variant:1}"
+      - "{name: 'vg', variant:1}"
+      - "{name: 'style'}"
     run: |
       ./autogen.sh -s
     parallel: false
 
   - name: Build
+    containerSelector:
+      - "{category: 'base'}"
+      - "{name: 'test', variant:1}"
+      - "{name: 'gtest', variant:1}"
+      - "{name: 'vg', variant:1}"
+      - "{name: 'style'}"
     enable: ${do_build}
     run: |
       [ "x${do_build}" == "xtrue" ] && action=yes || action=no
@@ -140,6 +202,11 @@ steps:
 
   - name: Package
     enable: ${do_package}
+    containerSelector:
+      - "{category: 'base'}"
+      # - "{name: 'test', variant:1}"
+      # - "{name: 'gtest', variant:1}"
+      # - "{name: 'vg', variant:1}"
     run: |
       [ "x${do_package}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_rpm=${action} ./contrib/test_jenkins.sh
@@ -229,12 +296,13 @@ steps:
   - name: Test
     enable: ${do_test}
     containerSelector:
-      - "{name: 'skip-container'}"
+      - "{name: 'test', variant:1}"
     agentSelector:
-      - "{nodeLabel: 'beni09', variant:1}"
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_test}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_run=${action} ./contrib/test_jenkins.sh
+      sleep 80000
     parallel: false
     onfail: |
       ./.ci/artifacts.sh
@@ -244,9 +312,9 @@ steps:
   - name: Gtest
     enable: ${do_gtest}
     containerSelector:
-      - "{name: 'skip-container'}"
+      - "{name: 'gtest', variant:1}"
     agentSelector:
-      - "{nodeLabel: 'beni09', variant:1}"
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_gtest}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_gtest=${action} ./contrib/test_jenkins.sh
@@ -261,9 +329,9 @@ steps:
   - name: Valgrind
     enable: ${do_valgrind}
     containerSelector:
-      - "{name: 'skip-container'}"
+      - "{name: 'vg', variant:1}"
     agentSelector:
-      - "{nodeLabel: 'beni09', variant:1}"
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_valgrind}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_vg=${action} ./contrib/test_jenkins.sh
@@ -291,6 +359,13 @@ steps:
 
   - name: Artifacts
     enable: ${do_artifact}
+    containerSelector:
+      - "{category: 'base'}"
+      - "{name: 'test', variant:1}"
+      - "{name: 'gtest', variant:1}"
+      - "{name: 'vg', variant:1}"
+      - "{name: 'style'}"
+      - "{category: 'tool', variant:1}"
     run: |
       ./.ci/artifacts.sh
     parallel: false

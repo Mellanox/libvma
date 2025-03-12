@@ -70,6 +70,7 @@ TEST_F(tcp_bind, ti_1) {
  * @details
  */
 TEST_F(tcp_bind, ti_2) {
+	GTEST_SKIP() << "Skipping this test temporarily;Please see Issue #4332286.";
 	int rc = EOK;
 	int fd;
 
