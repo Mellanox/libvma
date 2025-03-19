@@ -1,11 +1,9 @@
-# verbs.m4 - Parsing verbs capabilities
 #
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
 # Copyright (c) 2001-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: GPL-2.0-only or BSD-3-Clause
-# See file LICENSE for terms.
+# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
 #
-
+# verbs.m4 - Parsing verbs capabilities
 
 # Check attributes
 # Usage: CHECK_VERBS_ATTRIBUTE([attribute], [header file], [definition])

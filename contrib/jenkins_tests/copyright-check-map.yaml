@@ -34,7 +34,7 @@ general:
         - ".*src/vma/config_parser.*"
         - ".*src/vma/config_scanner\\.c"
 
-dual_gpl_2_bsd_3:
+dual_gpl_2_bsd_2_no_license:
     validate-spdx-license: True
     include:
         - ".*"
