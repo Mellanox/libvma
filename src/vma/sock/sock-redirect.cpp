@@ -609,6 +609,8 @@ int vma_add_conf_rule(const char *config_line)
 extern "C"
 int vma_thread_offload(int offload, pthread_t tid)
 {
+	DO_GLOBAL_CTORS();
+
 	if (g_p_fd_collection) {
 		g_p_fd_collection->offloading_rule_change_thread(offload, tid);
 	} else {
