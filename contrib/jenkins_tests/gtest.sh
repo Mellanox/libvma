@@ -2,16 +2,16 @@
 
 source $(dirname $0)/globals.sh
 
+# Fix hugepages for docker environments
+do_hugepages
+ulimit -l unlimited
+ulimit -c unlimited 
+
 echo "Checking for gtest ..."
 
 # Check dependencies
 if [ $(test -d ${install_dir} >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] Not found ${install_dir} : build should be done before this stage"
-	exit 1
-fi
-
-if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
-	echo "[SKIP] ibdev2netdev tool does not exist"
 	exit 1
 fi
 
@@ -25,16 +25,21 @@ gtest_app="$PWD/tests/gtest/gtest"
 gtest_lib=$install_dir/lib/${prj_lib}
 
 gtest_ip_list=""
-if [ ! -z $(do_get_ip 'eth') ]; then
-	gtest_ip_list="$(do_get_ip 'eth')"
-fi
-if [ ! -z $(do_get_ip 'eth' '' $gtest_ip_list) ]; then
-	gtest_ip_list="${gtest_ip_list}:$(do_get_ip 'eth' '' $gtest_ip_list)"
+
+if [[ -f /.dockerenv ]] || [[ -f /run/.containerenv ]] || [[ -n "${KUBERNETES_SERVICE_HOST}" ]]; then
+	gtest_opt="--addr=$(ip -f inet addr show net1 | awk '/inet / {print $2}' | cut -d/ -f1):$(ip -f inet addr show net2 | awk '/inet / {print $2}' | cut -d/ -f1)"
 else
-	echo "[SKIP] two eth interfaces are required. found: ${gtest_ip_list}"
-	exit 0
+	if [ ! -z $(do_get_ip 'eth') ]; then
+		gtest_ip_list="$(do_get_ip 'eth')"
+	fi
+	if [ ! -z $(do_get_ip 'eth' '' $gtest_ip_list) ]; then
+		gtest_ip_list="${gtest_ip_list}:$(do_get_ip 'eth' '' $gtest_ip_list)"
+	else
+		echo "[SKIP] two eth interfaces are required. found: ${gtest_ip_list}"
+		exit 0
+	fi
+	gtest_opt="--addr=${gtest_ip_list}"
 fi
-gtest_opt="--addr=${gtest_ip_list}"
 
 set +eE
 
