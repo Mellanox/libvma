@@ -114,6 +114,34 @@ struct event_data_t {
 	ibverbs_ev_t ibverbs_ev;
 	rdma_cm_ev_t rdma_cm_ev;
 	command_ev_t command_ev;
+	event_data_t() = default;
+	event_data_t(ev_type t, const ibverbs_reg_info_t &info)
+		: type(t)
+		, ibverbs_ev {}
+		, rdma_cm_ev {}
+		, command_ev {}
+	{
+		ibverbs_ev.fd = info.fd;
+		ibverbs_ev.channel = info.channel;
+	}
+	event_data_t(ev_type t, const rdma_cm_reg_info_t &info)
+		: type(t)
+		, ibverbs_ev {}
+		, rdma_cm_ev {}
+		, command_ev {}
+	{
+		rdma_cm_ev.n_ref_count = 1;
+		rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
+		rdma_cm_ev.cma_channel = info.cma_channel;
+	}
+	event_data_t(ev_type t, const command_reg_info_t &info)
+		: type(t)
+		, ibverbs_ev {}
+		, rdma_cm_ev {}
+		, command_ev {}
+	{
+		command_ev.cmd = info.cmd;
+	}
 };
 
 typedef std::map<int /*fd*/, event_data_t> event_handler_map_t;

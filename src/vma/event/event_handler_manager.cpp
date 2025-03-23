@@ -483,15 +483,7 @@ void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& inf
 	event_handler_map_t::iterator i;
 	i = m_event_handler_map.find(info.fd);
 	if (i == m_event_handler_map.end()) {
-		event_data_t v;
-
-		v.type                  = EV_IBVERBS;
-		v.ibverbs_ev.fd         = info.fd;
-		v.ibverbs_ev.channel    = info.channel;
-
-		/* coverity[uninit_use_in_call] */
-		/* cppcheck-suppress uninitStructMember */
-		m_event_handler_map[info.fd] = v;
+		m_event_handler_map[info.fd] = event_data_t(EV_IBVERBS, info);
 		i = m_event_handler_map.find(info.fd);
 
 		priv_prepare_ibverbs_async_event_queue(i);
@@ -572,16 +564,7 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 	event_handler_map_t::iterator iter_fd = m_event_handler_map.find(info.fd);
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d, id %p, handler %p)", info.fd, info.id, info.handler);
-		event_data_t map_value;
-
-		map_value.type = EV_RDMA_CM;
-		map_value.rdma_cm_ev.n_ref_count = 1;
-		map_value.rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
-		map_value.rdma_cm_ev.cma_channel = info.cma_channel;
-
-		/* coverity[uninit_use_in_call] */
-		/* cppcheck-suppress uninitStructMember */
-		m_event_handler_map[info.fd] = map_value;
+		m_event_handler_map[info.fd] = event_data_t(EV_RDMA_CM, info);
 
 		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 	}
@@ -647,14 +630,8 @@ void event_handler_manager::priv_register_command_events(command_reg_info_t& inf
 	event_handler_map_t::iterator iter_fd = m_event_handler_map.find(info.fd);
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d)", info.fd);
-		event_data_t map_value;
-
-		map_value.type = EV_COMMAND;
-		map_value.command_ev.cmd = info.cmd;
-
-		/* coverity[uninit_use_in_call] */
-		/* cppcheck-suppress uninitStructMember */
-		m_event_handler_map[info.fd] = map_value;
+		m_event_handler_map[info.fd] = event_data_t(EV_COMMAND, info);
+		
 		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 	}
 
