@@ -221,7 +221,9 @@ private:
 	timer			m_timer;
 
 	const bool m_b_sysvar_internal_thread_arm_cq_enabled;
+	#ifdef VMA_TIME_MEASURE
 	const uint32_t m_n_sysvar_vma_time_measure_num_samples;
+	#endif
 	const uint32_t m_n_sysvar_timer_resolution_msec;
 
 	event_handler_map_t	m_event_handler_map;

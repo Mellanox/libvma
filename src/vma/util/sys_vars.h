@@ -411,8 +411,9 @@ public:
 	uint32_t 	neigh_uc_arp_quata;
 	uint32_t	neigh_wait_till_send_arp_msec;
 	uint32_t	neigh_num_err_retries;
-
+	#ifdef VMA_TIME_MEASURE
 	uint32_t 	vma_time_measure_num_samples;
+	#endif
 	char 		vma_time_measure_filename[PATH_MAX];
 	sysctl_reader_t & sysctl_reader;
 	// Workaround for #3440429: postpone close(2) to the socket destructor, so the sockfd is closed

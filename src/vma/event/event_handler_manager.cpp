@@ -232,7 +232,9 @@ void event_handler_manager::register_command_event(int fd, command* cmd)
 event_handler_manager::event_handler_manager() :
 		m_reg_action_q_lock("reg_action_q_lock"),
 		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq_enabled),
+		#ifdef VMA_TIME_MEASURE
 		m_n_sysvar_vma_time_measure_num_samples(safe_mce_sys().vma_time_measure_num_samples),
+		#endif
 		m_n_sysvar_timer_resolution_msec(safe_mce_sys().timer_resolution_msec)
 {
 	evh_logfunc("");
@@ -659,7 +661,7 @@ void event_handler_manager::priv_register_command_events(command_reg_info_t& inf
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d)", info.fd);
 		m_event_handler_map[info.fd] = event_data_t(EV_COMMAND, info);
-		
+
 		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 	}
 
