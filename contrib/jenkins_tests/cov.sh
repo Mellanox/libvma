@@ -5,7 +5,7 @@ source $(dirname $0)/globals.sh
 
 echo "Checking for coverity ..."
 
-COVERITY_MODULE="${COVERITY_MODULE:-tools/cov-2021.12}"
+COVERITY_MODULE="${COVERITY_MODULE:-tools/cov-2023.12}"
 do_module "${COVERITY_MODULE}"
 
 cd "$WORKSPACE"
