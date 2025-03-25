@@ -552,7 +552,7 @@ int get_iftype_from_ifname(const char* ifname)
 	char iftype_filename[100];
 	char iftype_value_str[32];
 	char base_ifname[32];
-	char iftype_value = -1;
+	int iftype_value = -1;
 
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	sprintf(iftype_filename, IFTYPE_PARAM_FILE, base_ifname);
