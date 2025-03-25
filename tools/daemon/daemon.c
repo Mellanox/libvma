@@ -387,7 +387,7 @@ ssize_t sys_sendto(int sockfd,
 		const struct sockaddr *dest_addr, socklen_t addrlen)
 {
 	char *data = (char *)buf;
-	int n, nb;
+	ssize_t n, nb;
 
 	nb = 0;
 	do {
