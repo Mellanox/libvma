@@ -438,7 +438,10 @@ private:
 	void read_hv();
 
 	// prevent unautothrized creation of objects
-	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
+	mce_sys_var()
+	: sysctl_reader(sysctl_reader_t::instance())
+	, m_ioctl {}
+	{
 		// coverity[uninit_member]
 		get_env_params();
 	}
