@@ -191,7 +191,7 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 
 	if (!hugepagemask) {
 		hugepagemask = default_huge_page_size();
-		if (!hugepagemask) {
+		if (hugepagemask > 0) {
 			return false;
 		}
 		hugepagemask -= 1;
