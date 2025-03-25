@@ -223,6 +223,7 @@ public:
 	inline int lock() {
 		DEFINED_NO_THREAD_LOCK_RETURN_0
 		pthread_t self = pthread_self();
+		// coverity[use_same_locks_for_read_and_modify:FALSE]
 		if (m_owner == self) {
 			++m_lock_count;
 			return 0;

@@ -71,6 +71,7 @@ igmp_mgr::~igmp_mgr()
 		igmp_mgr_logdbg("Delete existing igmp handler '%s'", p_igmp_hdlr->to_str().c_str());
 		m_igmp_hash.erase(iter);
 		p_igmp_hdlr->clean_obj();
+		// coverity[assigned_pointer:FALSE] /* NULL assign for already freed object */
 		p_igmp_hdlr = NULL;
 		iter = m_igmp_hash.begin();
 	}
