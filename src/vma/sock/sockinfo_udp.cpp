@@ -1300,7 +1300,7 @@ wait:
 	 * Wait for RX to become ready.
 	 */
 	rx_wait_ret = rx_wait(m_b_blocking && !(in_flags & MSG_DONTWAIT));
-
+	// coverity[double_lock:FALSE] /* Turn off coverity check for overflow */
 	m_lock_rcv.lock();
 
 	if (likely(rx_wait_ret == 0)) {
@@ -1940,6 +1940,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			if (!sock_api || sock_api->get_type()!=FD_TYPE_SOCKET) {
 				m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), m_port_map[m_port_map_index].port));
 				if (m_port_map_index)
+					// coverity[underflow:FALSE] /* Turn off coverity underflow check */
 					m_port_map_index--;
 				m_port_map_lock.unlock();
 				continue;

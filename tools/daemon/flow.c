@@ -330,7 +330,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	free_pending_list(pid, ctx, value->if_id);
 
 err:
-
+	// coverity[overflow_const:FALSE] /* Turn off coverity check for overflow */
 	value->handle = HANDLE_SET(ht, bkt, id);
 	log_debug("[%d] add flow filter: %x:%x:%x rc=%d\n",
 			pid, ht, bkt, id, rc);

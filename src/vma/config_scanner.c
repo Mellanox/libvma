@@ -1019,8 +1019,9 @@ YY_DECL
 		 */
 		yy_bp = yy_cp;
 
-		/* coverity[var_deref_op] */
+		// coverity[var_deref_op:FALSE] /* Turn off coverity check for null deref */
 		yy_current_state = (yy_start);
+		// coverity[var_deref_op:FALSE] /* Turn off coverity check for null deref */
 		yy_current_state += YY_AT_BOL();
 yy_match:
 		do

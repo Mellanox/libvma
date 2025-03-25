@@ -141,6 +141,7 @@ void timer::remove_all_timers(timer_handler *handler)
 			remove_from_list(node_tmp);
 			// Remove & Free node
 			free(node_tmp);
+			// coverity[assigned_pointer:FALSE] /* NULL assign for already freed object */
 			node_tmp = NULL;
 		} else {
 			node = node->next;

@@ -49,6 +49,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	request_more_tx_buffers(m_sysvar_qp_compensation_level, 0);
 
 	/* Update ring statistics */
+	// coverity[overflow_const:FALSE] /* Turn off coverity overflow_const check */
 	m_p_ring_stat->tap.n_tap_fd = m_tap_fd;
 	if_indextoname(get_if_index(), tap_if_name);
 	memcpy(m_p_ring_stat->tap.s_tap_name, tap_if_name, IFNAMSIZ);

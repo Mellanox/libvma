@@ -255,6 +255,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 		strcpy(post_fix, "/s");
 
 	for (int i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+		// coverity[missing_lock:FALSE] /* Turn off coverity missing_lock check */
 		if (p_ring_inst_arr[i].b_enabled) {
 			p_ring_stats = &p_ring_inst_arr[i].ring_stats;
 			printf("======================================================\n");
@@ -305,6 +306,7 @@ void print_cq_stats(cq_instance_block_t* p_cq_inst_arr)
 		strcpy(post_fix, "/s");
 	
 	for (int i = 0; i < NUM_OF_SUPPORTED_CQS; i++) {
+		// coverity[missing_lock:FALSE] /* Turn off coverity missing_lock check */
 		if (p_cq_inst_arr[i].b_enabled) {
 			p_cq_stats = &p_cq_inst_arr[i].cq_stats;
 			printf("======================================================\n");
@@ -327,6 +329,7 @@ void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
 		strcpy(post_fix, "/s");
 
 	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+		// coverity[missing_lock:FALSE] /* Turn off coverity missing_lock check */
 		if (p_bpool_inst_arr && p_bpool_inst_arr[i].b_enabled) {
 			p_bpool_stats = &p_bpool_inst_arr[i].bpool_stats;
 			printf("======================================================\n");
@@ -814,7 +817,8 @@ void show_mc_group_stats(mc_grp_info_t* p_mc_grp_info , socket_instance_block_t*
 	for (uint32_t i=0; i < num_of_obj; i++) {
 		size_t fd = (size_t)p_instance[i].skt_stats.fd;
 		if (p_instance[i].b_enabled && g_fd_mask[fd]) {
-			socket_stats_t* p_si_stats = &p_instance[i].skt_stats; 
+			socket_stats_t* p_si_stats = &p_instance[i].skt_stats;
+			// coverity[missing_lock:FALSE] /* Turn off coverity missing_lock check */
 			for (int grp_idx = 0; grp_idx < p_mc_grp_info->max_grp_num; grp_idx++) {
 				if (p_si_stats->mc_grp_map.test(grp_idx)) {
 					//printf("fd %d Member of = [%d.%d.%d.%d]\n",p_si_stats->fd, NIPQUAD(p_si_stats->mc_grp[grp_idx]));

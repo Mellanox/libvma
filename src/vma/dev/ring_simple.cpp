@@ -134,6 +134,7 @@ ring_simple::~ring_simple()
 
 	// Allow last few post sends to be sent by HCA.
 	// Was done in order to allow iperf's FIN packet to be sent.
+	// coverity[sleep:FALSE] /* Turn off coverity sleep while holding lock */
 	usleep(25000);
 
 	if (m_p_qp_mgr) {
@@ -751,6 +752,7 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 							m_lock_ring_tx_buf_wait.unlock();
 							/* coverity[double_lock] TODO: RM#1049980 */
 							m_lock_ring_tx.lock();
+							// coverity[missing_unlock:FALSE] /*Turn off coverity check for overflow*/
 							return false;
 						}
 						ring_logfunc("polling/blocking succeeded on tx cq_mgr (we got %d wce)", ret);

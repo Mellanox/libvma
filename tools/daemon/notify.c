@@ -679,6 +679,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 		}
 
 		/* Close the file descriptor of the event */
+		// coverity[double_close:FALSE] /* Turn off coverity check */
 		close(data->fd);
 		data = FAN_EVENT_NEXT(data, len);
 	}

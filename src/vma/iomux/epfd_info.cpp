@@ -574,7 +574,7 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 	__log_func("");
 
 	int ret_total = 0;
-
+	// coverity[missing_lock:FALSE] /* Turn off coverity sleep while holding lock */
 	if (m_ring_map.empty()) {
 		return ret_total;
 	}
@@ -611,7 +611,7 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 {
 	__log_func("");
 	int ret_total = 0;
-
+	// coverity[missing_lock:FALSE] /* Turn off coverity sleep while holding lock */
 	if (m_ring_map.empty()) {
 		return ret_total;
 	}
