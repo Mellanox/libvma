@@ -1169,6 +1169,7 @@ size_t default_huge_page_size(void)
 		if (file) {
 			while (fgets(str, sizeof(str), file) != NULL) {
 				if (sscanf(str, "Hugepagesize:   %8lu kB", &sz) == 1) {
+					// coverity[overflow:FALSE] /* Turn off coverity overflow check */
 					hugepage_sz = sz * 1024;
 					break;
 				}

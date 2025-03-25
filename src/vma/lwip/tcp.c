@@ -486,6 +486,7 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
   if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((pcb->rcv_wnd_max / 2), pcb->mss))) {
     /* we can advertise more window */
     pcb->rcv_ann_wnd = pcb->rcv_wnd;
+    // coverity[overflow:FALSE] /* Turn off coverity check, value is non-negative */
     return new_right_edge - pcb->rcv_ann_right_edge;
   } else {
     if (TCP_SEQ_GT(pcb->rcv_nxt, pcb->rcv_ann_right_edge)) {

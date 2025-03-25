@@ -257,6 +257,7 @@ int cpu_manager::reserve_cpu_for_thread(pthread_t tid, int suggested_cpu /* = NO
 			cpu = suggested_cpu;
 		}
 		CPU_ZERO(&cpu_set);
+		// coverity[overflow_const:FALSE] /* Turn off coverity check, cpu value is non-negative */
 		CPU_SET(cpu, &cpu_set);
 		__log_dbg("attach tid=%lu running on cpu=%d to cpu=%d", tid, sched_getcpu(), cpu);
 		ret = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpu_set);

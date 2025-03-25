@@ -194,6 +194,7 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 		if (!hugepagemask) {
 			return false;
 		}
+		// coverity[overflow:FALSE] /* Turn off coverity check for overflow */
 		hugepagemask -= 1;
 	}
 
