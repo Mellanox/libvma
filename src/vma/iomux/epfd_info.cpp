@@ -602,12 +602,13 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 	__log_func("");
 
 	int ret_total = 0;
-	// coverity[missing_lock:FALSE] /* Turn off coverity sleep while holding lock */
+	
+	m_ring_map_lock.lock();
+
 	if (m_ring_map.empty()) {
+		m_ring_map_lock.unlock();
 		return ret_total;
 	}
-
-	m_ring_map_lock.lock();
 
 	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
 		int ret = iter->first->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
@@ -619,7 +620,7 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (ret > 0)
-			__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
+			__log_func("ring[%p] Returnwed with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
 		ret_total += ret;
 	}
 
@@ -639,12 +640,13 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 {
 	__log_func("");
 	int ret_total = 0;
-	// coverity[missing_lock:FALSE] /* Turn off coverity sleep while holding lock */
-	if (m_ring_map.empty()) {
-		return ret_total;
-	}
 
 	m_ring_map_lock.lock();
+	
+	if (m_ring_map.empty()) {
+		m_ring_map_lock.unlock();
+		return ret_total;
+	}
 
 	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
 		int ret = iter->first->request_notification(CQT_RX, poll_sn);
