@@ -43,7 +43,7 @@ runs_on_dockers:
   - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
 # tool
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
-  - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
+  - {cloud: swx-k8s-spray, name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.58', category: 'tool', arch: 'x86_64', tag: '0.0.58'}
 
 runs_on_agents:
@@ -96,12 +96,12 @@ steps:
       - "{nodeLabel: 'skip-agent'}"
     run: |
       echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
+      .ci/scripts/doca_install.sh
 
   - name: Install Doca-host on Tools
     run: |
       echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
+      .ci/scripts/doca_install.sh
     containerSelector:
       - "{name: 'style', category: 'tool'}"
     agentSelector:
@@ -116,7 +116,7 @@ steps:
     enable: ${do_build}
     run: |
       [ "x${do_build}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh 
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh
     parallel: false
     onfail: |
       ./.ci/artifacts.sh
