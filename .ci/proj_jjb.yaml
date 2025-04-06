@@ -115,7 +115,7 @@
             failure-status: "[FAIL]"
             error-status:   "[FAIL]"
             status-add-test-results: true
-            auth-id: 'swx-jenkins_ssh_key'
+            auth-id: 'svc-nbu-swx-media_GHPRB_ID'
             org-list: ["Mellanox"]
             white-list: ["swx-jenkins","swx-jenkins2","swx-jenkins3","mellanox-github"]
             allow-whitelist-orgs-as-admins: true
