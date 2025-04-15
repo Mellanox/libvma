@@ -53,14 +53,12 @@ runs_on_dockers:
       tag: '20250219',
       build_args: '--no-cache --target test',
       category: 'tests',
-      annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p1' }],
-      limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p1: 1}',
-      requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p1: 1}',
+      annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6-p1' }],
+      limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, nvidia.com/sriov-cx6-p1: 1}',
+      requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, nvidia.com/sriov-cx6-p1: 1}',
       caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
       runAsUser: '0',
       runAsGroup: '0',
-      cloud: swx-k8s-spray,
-      namespace: default
     }
   - {
      file: '.ci/dockerfiles/Dockerfile.ubuntu22.04',
@@ -70,14 +68,12 @@ runs_on_dockers:
      tag: '20250219',
      build_args: '--no-cache --target vg',
      category: 'tool',
-     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p2' }],
-     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p2: 1}',
-     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, mellanox.com/sriov_cx6dx_p2: 1}',
+     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6-p2' }],
+     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, nvidia.com/sriov-cx6-p2: 1}',
+     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 10Gi, nvidia.com/sriov-cx6-p2: 1}',
      caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
      runAsUser: '0',
      runAsGroup: '0',
-     cloud: swx-k8s-spray,
-     namespace: default
     }
   - {
      file: '.ci/dockerfiles/Dockerfile.ubuntu22.04',
@@ -87,14 +83,12 @@ runs_on_dockers:
      tag: '20250219',
      build_args: '--no-cache --target gtest',
      category: 'tests',
-     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6dx-p1@net1,sriov-cx6dx-p2@net2' }],
-     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, mellanox.com/sriov_cx6dx_p1: 1, mellanox.com/sriov_cx6dx_p2: 1}',
-     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, mellanox.com/sriov_cx6dx_p1: 1, mellanox.com/sriov_cx6dx_p2: 1}',
+     annotations: [{ key: 'k8s.v1.cni.cncf.io/networks', value: 'sriov-cx6-p1@net1,sriov-cx6-p2@net2' }],
+     limits: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, nvidia.com/sriov-cx6-p1: 1,nvidia.com/sriov-cx6-p2: 1}',
+     requests: '{memory: 10Gi, cpu: 10000m, hugepages-2Mi: 8Gi, nvidia.com/sriov-cx6-p1: 1,nvidia.com/sriov-cx6-p2: 1}',
      caps_add: '[ IPC_LOCK, SYS_RESOURCE ]',
      runAsUser: '0',
      runAsGroup: '0',
-     cloud: swx-k8s-spray,
-     namespace: default
     }
 
 matrix:

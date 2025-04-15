@@ -1,7 +1,7 @@
 - job-template:
     name: "{jjb_proj}"
     project-type: pipeline
-    folder: libvma
+    folder: devops/testing_zones/nwolfer
     properties:
         - github:
              url: "https://github.com/Mellanox/libvma"
@@ -106,20 +106,6 @@
             name: "do_copyrights"
             default: true
             description: "Check copyrights in source headers"
-    triggers:
-        - github-pull-request:
-            cron: 'H/5 * * * *'
-            trigger-phrase: '.*\bbot:retest\b.*'
-            status-context: "{jjb_proj}"
-            success-status: "[PASS]"
-            failure-status: "[FAIL]"
-            error-status:   "[FAIL]"
-            status-add-test-results: true
-            auth-id: 'swx-jenkins_ssh_key'
-            org-list: ["Mellanox"]
-            white-list: ["swx-jenkins","swx-jenkins2","swx-jenkins3","mellanox-github"]
-            allow-whitelist-orgs-as-admins: true
-            cancel-builds-on-update: true
     pipeline-scm:
         scm:
             - git:
@@ -135,7 +121,7 @@
 - project:
     name: libvma
     jjb_email: 'nwolfer@nvidia.com'
-    jjb_proj: 'LibVMA'
+    jjb_proj: 'libvma-copy'
     jjb_git: 'git@github.com:Mellanox/libvma.git'
     jjb_owner: 'Nir Wolfer'
     jobs:
