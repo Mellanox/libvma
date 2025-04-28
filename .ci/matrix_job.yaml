@@ -27,6 +27,7 @@ credentials:
   - {credentialsId: 'media_coverity_credentials', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
   - {credentialsId: 'mellanox_github_credentials', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
   - {credentialsId: 'swx-jenkins2-svc-gerrit-ssh-key', keyFileVariable: 'GERRIT_SSH_KEY', type: 'sshUserPrivateKey'}
+  - {credentialsId: 'blackduck_api_token', type: 'string', variable: 'BLACKDUCK_API_TOKEN'}
 
 env:
   build_dockers: false
@@ -307,13 +308,14 @@ steps:
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
     run: |
-      export BLACKDUCK_API_TOKEN="ODMwOWYwMzEtODA2ZC00MzBjLWI1ZDEtNmFiMjBkYzQzMzkwOjNmNjExN2M1LWE2ZmEtNDZlYS1hZjRiLTZlNDgwNjAwOTVjNw=="
       # WA for possible CI-Demo bug: HPCINFRA-1614
       if ${do_blackduck} ; then
         .ci/blackduck_source.sh
       fi
     archiveArtifacts: 'logs/'
-    credentialsId: "swx-jenkins2-svc-gerrit-ssh-key"
+    credentialsId: 
+      - "swx-jenkins2-svc-gerrit-ssh-key"
+      - "blackduck_api_token"
 
 pipeline_start:
   run: |
