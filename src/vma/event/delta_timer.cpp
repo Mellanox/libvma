@@ -208,9 +208,7 @@ void timer::process_registered_timers()
 		 * Object can be destoyed from another thread (lock protection)
 		 * and from current thread (lock and lock count condition)
 		 */
-		if (iter->handler &&
-			!iter->lock_timer.trylock() &&
-			(1 == iter->lock_timer.is_locked_by_me())) {
+		if (iter->handler && iter->lock_timer.trylock()) {
 			iter->handler->handle_timer_expired(iter->user_data);
 			iter->lock_timer.unlock();
 		}
