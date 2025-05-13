@@ -1,5 +1,6 @@
 #!/bin/bash
 
+opt_tarpkg=0
 opt_srcpkg=0
 opt_binpkg=0
 opt_co=""
@@ -18,6 +19,9 @@ while test "$1" != ""; do
             ;;
         --srcpkg|-s)
             opt_srcpkg=1
+            ;;
+        --tarpkg|-t)
+            opt_tarpkg=1
             ;;
         --binpkg|-b)
             opt_binpkg=1
@@ -40,6 +44,7 @@ Valid arguments:
 --input   |-i <dir>            Sources location
 --output  |-o <dir>            Packages location
 --srcpkg  |-s                  Create source package
+--tarpkg  |-t                  Create release tarball with spec file at root
 --binpkg  |-b                  Create binary package
 --checkout|-c <branch|tag>     Checkout from SCM
 --argument|-a <key=value>      Pass options into build procedure
@@ -176,6 +181,37 @@ if [ $opt_binpkg -eq 1 -a "$rc" -eq 0 ]; then
         unset IFS
     fi
     rc=$((rc + $?))
+fi
+
+# Create the release tarball separately after src.rpm generation
+if [ $opt_tarpkg -eq 1 ]; then
+    echo ${pkg_label} "Creating release tarball..."
+    # Get version for directory name
+    tarball_name=$(basename ${pkg_tarball})
+    tarball_root_dir=${tarball_name%.tar.gz}
+    
+    # Create a temporary directory using mktemp instead of a fixed name
+    tarball_tmp=$(mktemp -d -p ${pkg_dir}) >> ${pkg_log} 2>&1
+    tar -xzf ${pkg_tarball} -C ${tarball_tmp} >> ${pkg_log} 2>&1
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to extract tarball ${pkg_tarball}. Exit" >> ${pkg_log}
+        exit 1
+    fi
+    
+    # Move spec file to the root directory to support rpmbuild
+    cp ${pkg_dir}/contrib/scripts/${pkg_spec} ${tarball_tmp}/${tarball_root_dir}/ >> ${pkg_log} 2>&1
+    # Remove the duplicate spec file
+    rm ${tarball_tmp}/${tarball_root_dir}/contrib/scripts/${pkg_spec} >> ${pkg_log} 2>&1
+    
+    # Create new tarball with proper structure
+    pushd ${tarball_tmp} >> ${pkg_log} 2>&1
+    tar -czf ${pkg_outdir}/${tarball_name} ${tarball_root_dir} >> ${pkg_log} 2>&1
+    popd >> ${pkg_log} 2>&1
+    
+    echo ${pkg_label} "Release tarball created: ${pkg_outdir}/${tarball_name}"
+    
+    # Add tarball temporary directory to cleanup
+    pkg_cleanup="${pkg_cleanup} ${tarball_tmp}"
 fi
 
 if [ "$rc" -eq 0 ]; then
