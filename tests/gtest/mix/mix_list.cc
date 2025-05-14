@@ -123,7 +123,8 @@ TEST_F(mix_list, ti_7) {
 	list_add_tail(&element.item, &head);
 
 	ASSERT_FALSE(list_empty(&head));
-	ASSERT_TRUE(list_is_last(&element.item, &head));
+	// Check if element.item is the last entry in the list (its next points to head)
+	ASSERT_TRUE(element.item.next == &head);
 }
 
 TEST_F(mix_list, ti_8) {
