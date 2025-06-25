@@ -78,6 +78,7 @@ if [ "${do_release}" = true ] ; then
     sudo -E -u swx-jenkins mkdir -p "$DST_DIR"
     sudo -E -u swx-jenkins cp -v "${files_dir}/${pkg_folder}/${pkg_name}" "$DST_DIR"
     sudo -E -u swx-jenkins cp -v "${files_dir}/${pkg_folder}/${tarball_name}" "$DST_DIR"
+    sudo -E -u swx-jenkins ln -s "${DST_DIR}/${pkg_name}" "${release_folder}/source_rpms/${pkg_name}"
     popd || { echo "ERROR: Failed to popd from ${release_folder}. Exit" ; exit 1; }
 
     echo "INFO: Release found at $DST_DIR"
