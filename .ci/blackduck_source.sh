@@ -16,8 +16,7 @@ json=$(jq -n \
 export SPRING_APPLICATION_JSON="$json"
 export PROJECT_NAME=LibVMA
 export PROJECT_VERSION="$sha1"
-export PROJECT_SRC_PATH="$topdir"/src/
-
+export PROJECT_SRC_PATH="$topdir"/
 echo "Running BlackDuck (SRC) on $name"
 echo "CONFIG:"
 echo "        NAME: ${PROJECT_NAME}"
@@ -26,15 +25,12 @@ echo "    SRC_PATH: ${PROJECT_SRC_PATH}"
 
 # clone BlackDuck
 [[ -d /tmp/blackduck ]] && rm -rf /tmp/blackduck
-[[ -d ~/.ssh/ ]] || mkdir -p ~/.ssh/
-chmod 600 "${GERRIT_SSH_KEY}"
-ssh-keyscan -p 12023 -H git-nbu.nvidia.com >> ~/.ssh/known_hosts
-git clone -c core.sshCommand="ssh -i ${GERRIT_SSH_KEY} -l swx-jenkins2-svc" -b master --single-branch --depth=1 ssh://git-nbu.nvidia.com:12023/DevOps/Tools/blackduck /tmp/blackduck
+sudo -u swx-jenkins git clone -c core.sshCommand="ssh -i ~/.ssh/id_ed25519" -b master --single-branch --depth=1 ssh://git-nbu.nvidia.com:12023/DevOps/Tools/blackduck /tmp/blackduck
 cd /tmp/blackduck
 
 # disable check errors
 set +e
-timeout 3600 ./run_bd_scan.sh
+timeout 3600 ./run_bd_scan.sh signature
 exit_code=$?
 # enable back
 set -e
