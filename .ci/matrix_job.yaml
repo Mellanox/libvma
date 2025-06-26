@@ -22,6 +22,7 @@ volumes:
   - {mountPath: /auto/sw_tools/Commercial, hostPath: /auto/sw_tools/Commercial}
   - {mountPath: /hpc/local/commercial, hostPath: /hpc/local/commercial}
   - {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
+  - {mountPath: /var/home/swx-jenkins, hostPath: /labhome/swx-jenkins}
 
 credentials:
   - {credentialsId: 'media_coverity_credentials', usernameVariable: 'VMA_COV_USER', passwordVariable: 'VMA_COV_PASSWORD'}
@@ -45,7 +46,7 @@ runs_on_dockers:
   - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
 # tool
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
-  - {name: 'blackduck', file: '.ci/dockerfiles/Dockerfile.rhel8.6', category: 'tool', arch: 'x86_64', tag: '20250422', uri: 'vma/$arch/$name/bduck', build_args: '--no-cache'}
+  - {name: 'blackduck', file: '.ci/dockerfiles/Dockerfile.rhel8.6', category: 'tool', arch: 'x86_64', tag: '20250630', uri: 'vma/$arch/$name/bduck', build_args: '--no-cache --target bduck'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.58', category: 'tool', arch: 'x86_64', tag: '0.0.58'}
 
 runs_on_agents:
