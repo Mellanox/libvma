@@ -196,6 +196,7 @@ typedef struct {
 
 // CQ stat info
 typedef struct {
+	uint64_t    n_rx_drop_counter;
 	uint64_t    n_rx_pkt_drop;
 	uint32_t    n_rx_sw_queue_len;
 	uint32_t    n_rx_drained_at_once_max;
