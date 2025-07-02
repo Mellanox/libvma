@@ -237,6 +237,7 @@ typedef struct {
 			uint64_t    n_rx_interrupt_received;
 			uint32_t    n_rx_cq_moderation_count;
 			uint32_t    n_rx_cq_moderation_period;
+			uint64_t    n_tx_dropped_wqes;
 			uint64_t    n_tx_dev_mem_pkt_count;
 			uint64_t    n_tx_dev_mem_byte_count;
 			uint64_t    n_tx_dev_mem_oob;

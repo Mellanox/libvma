@@ -623,6 +623,7 @@ inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packe
 			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 			p_mem_buf_desc->p_next_desc = NULL;
 		}
+		++m_p_ring_stat->simple.n_tx_dropped_wqes;
 	}
 	return ret;
 }
