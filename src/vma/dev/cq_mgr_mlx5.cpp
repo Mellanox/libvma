@@ -170,7 +170,7 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_
 			status = BS_OK;
 			p_rx_wc_buf_desc->sz_data = ntohl(cqe->byte_cnt);
 			p_rx_wc_buf_desc->rx.hw_raw_timestamp = ntohll(cqe->timestamp);
-			p_rx_wc_buf_desc->rx.flow_tag_id      = vma_get_flow_tag(cqe);
+			p_rx_wc_buf_desc->rx.flow_tag_id      = vma_get_flow_tag(cqe) & 0x00FFFFFF;
 			p_rx_wc_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on &&
 					(cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
 			return;
