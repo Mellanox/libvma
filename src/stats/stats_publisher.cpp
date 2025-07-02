@@ -624,3 +624,8 @@ void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* local_stats_addr)
 	g_lock_iomux.unlock();
 	return;
 }
+
+void vma_stats_instance_get_global_block(global_stats_t* local_stats_addr)
+{
+	g_p_stats_data_reader->add_data_reader(local_stats_addr, &g_sh_mem->global_stats, sizeof(global_stats_t));
+}

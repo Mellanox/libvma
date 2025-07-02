@@ -4701,6 +4701,7 @@ tcp_seg * tcp_seg_pool::get_tcp_segs(int amount) {
 		amount--;
 	}
 	if (amount) {
+		g_global_stats.n_tcp_seg_alloc_failures++;
 		unlock();
 		return NULL;
 	}
