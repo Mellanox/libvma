@@ -221,6 +221,7 @@ void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_pre
 			p_prev_ring_stats->simple.n_tx_dev_mem_allocated = p_curr_ring_stats->simple.n_tx_dev_mem_allocated;
 			p_prev_ring_stats->simple.n_tx_dev_mem_byte_count = (p_curr_ring_stats->simple.n_tx_dev_mem_byte_count - p_prev_ring_stats->simple.n_tx_dev_mem_byte_count) / delay;
 			p_prev_ring_stats->simple.n_tx_dev_mem_pkt_count = (p_curr_ring_stats->simple.n_tx_dev_mem_pkt_count - p_prev_ring_stats->simple.n_tx_dev_mem_pkt_count) / delay;
+			p_prev_ring_stats->simple.n_tx_dropped_wqes = (p_curr_ring_stats->simple.n_tx_dropped_wqes - p_prev_ring_stats->simple.n_tx_dropped_wqes) / delay;
 			p_prev_ring_stats->simple.n_tx_dev_mem_oob = (p_curr_ring_stats->simple.n_tx_dev_mem_oob - p_prev_ring_stats->simple.n_tx_dev_mem_oob) / delay;
 		}
 	}
@@ -299,6 +300,9 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 				if (p_ring_stats->simple.n_tx_dev_mem_allocated) {
 					printf(FORMAT_STATS_32bit, "Dev Mem Alloc:", p_ring_stats->simple.n_tx_dev_mem_allocated);
 					printf(FORMAT_RING_DM_STATS, "Dev Mem Stats:", p_ring_stats->simple.n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->simple.n_tx_dev_mem_pkt_count, p_ring_stats->simple.n_tx_dev_mem_oob, post_fix);
+				}
+				if (p_ring_stats->simple.n_tx_dropped_wqes) {
+					printf(FORMAT_STATS_64bit, "TX Dropped Send Reqs:", (unsigned long long int)p_ring_stats->simple.n_tx_dropped_wqes, post_fix);
 				}
 			}
 		}
@@ -1358,6 +1362,7 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 		p_ring_stats->simple.n_rx_interrupt_requests = 0;
 		p_ring_stats->simple.n_tx_dev_mem_byte_count = 0;
 		p_ring_stats->simple.n_tx_dev_mem_pkt_count = 0;
+		p_ring_stats->simple.n_tx_dropped_wqes = 0;
 		p_ring_stats->simple.n_tx_dev_mem_oob = 0;
 	}
 }
