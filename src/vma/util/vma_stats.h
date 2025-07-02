@@ -272,7 +272,9 @@ typedef struct {
 // Global VMA statistics
 typedef struct {
 	uint32_t    n_tcp_seg_alloc_failures;
-	// Future global stats can be added here
+	uint32_t    n_socket_objs;
+	uint32_t    n_tcp_socket_objs;
+	uint32_t    n_tcp_socket_objs_max;
 } global_stats_t;
 extern global_stats_t g_global_stats;
 
