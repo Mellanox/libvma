@@ -84,6 +84,8 @@ bool g_init_global_ctors_done = true;
 static command_netlink *s_cmd_nl = NULL;
 #define MAX_VERSION_STR_LEN	128
 
+global_stats_t g_global_stats = {};
+
 static int free_libvma_resources()
 {
 	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
@@ -658,6 +660,8 @@ static void do_global_ctors_helper()
 	vma_shmem_stats_open(&g_p_vlogger_level, &g_p_vlogger_details);
 	*g_p_vlogger_level = g_vlogger_level;
 	*g_p_vlogger_details = g_vlogger_details;
+
+	vma_stats_instance_get_global_block(&g_global_stats);
 
 	//Create new netlink listener
 	NEW_CTOR(g_p_netlink_handler, netlink_wrapper());

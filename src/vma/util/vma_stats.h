@@ -269,6 +269,13 @@ typedef struct {
 	bpool_stats_t   bpool_stats;
 } bpool_instance_block_t;
 
+// Global VMA statistics
+typedef struct {
+	uint32_t    n_tcp_seg_alloc_failures;
+	// Future global stats can be added here
+} global_stats_t;
+extern global_stats_t g_global_stats;
+
 // Version info
 typedef struct {
 	uint8_t    vma_lib_maj;
@@ -290,6 +297,7 @@ typedef struct sh_mem_t {
 	bpool_instance_block_t   bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t            mc_info;
 	iomux_stats_t            iomux;
+	global_stats_t           global_stats;
 	size_t                   max_skt_inst_num; // number of elements allocated in 'socket_instance_block_t skt_inst_arr[]'
 
 	/* IMPORTANT:  MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
@@ -327,6 +335,7 @@ typedef struct sh_mem_t {
 		memset(bpool_inst_arr, 0, sizeof(bpool_inst_arr));
 		memset(&mc_info, 0, sizeof(mc_info));
 		memset(&iomux, 0, sizeof(iomux));
+		memset(&global_stats, 0, sizeof(global_stats));
 		for (uint32_t i = 0; i < max_skt_inst_num; i++) {
 			skt_inst_arr[i].reset();
 		}
@@ -365,6 +374,8 @@ void vma_stats_instance_get_select_block(iomux_func_stats_t*);
 
 void vma_stats_instance_create_epoll_block(int, iomux_func_stats_t*);
 void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* ep_stats);
+
+void vma_stats_instance_get_global_block(global_stats_t*);
 
 //reader functions
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename);
