@@ -10,6 +10,7 @@
 #include <sys/epoll.h>
 #include <netdb.h>
 #include <linux/sockios.h>
+#include <atomic>
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
@@ -88,6 +89,8 @@ sockinfo::sockinfo(int fd):
 	memset(&m_so_ratelimit, 0, sizeof(vma_rate_limit_t));
 	set_flow_tag(m_fd + 1);
 
+	__atomic_fetch_add(&g_global_stats.n_socket_objs, 1, __ATOMIC_SEQ_CST);
+
 	m_socketxtreme.ec.clear();
 	m_socketxtreme.completion = NULL;
 	m_socketxtreme.last_buff_lst = NULL;
@@ -112,6 +115,9 @@ sockinfo::~sockinfo()
 		delete[] m_p_rings_fds;
 		m_p_rings_fds = NULL;
 	}
+
+	__atomic_fetch_sub(&g_global_stats.n_socket_objs, 1, __ATOMIC_SEQ_CST);
+
         vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 

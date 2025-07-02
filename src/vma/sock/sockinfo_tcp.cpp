@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <netinet/tcp.h>
+#include <atomic>
 #include "vma/util/if.h"
 
 #include "utils/bullseye.h"
@@ -288,6 +289,17 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
 	g_p_agent->register_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
 	si_tcp_logfunc("done");
+
+	// Increment TCP socket objects counter and update max if needed (thread safe)
+	uint32_t cur_tcp_socket_objs = __atomic_fetch_add(&g_global_stats.n_tcp_socket_objs, 1, __ATOMIC_SEQ_CST);
+	++cur_tcp_socket_objs;
+	bool uptodate = true;
+	do {
+		uint32_t cur_tcp_socket_objs_max = __atomic_load_n(&g_global_stats.n_tcp_socket_objs_max, __ATOMIC_SEQ_CST);
+		if (cur_tcp_socket_objs_max < cur_tcp_socket_objs) {
+			uptodate = __atomic_compare_exchange_n(&g_global_stats.n_tcp_socket_objs_max, &cur_tcp_socket_objs_max, cur_tcp_socket_objs, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+		}
+	} while (!uptodate);
 }
 
 sockinfo_tcp::~sockinfo_tcp()
@@ -332,6 +344,7 @@ sockinfo_tcp::~sockinfo_tcp()
 	g_p_agent->unregister_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
 
 	si_tcp_logdbg("sock closed");
+	__atomic_fetch_sub(&g_global_stats.n_tcp_socket_objs, 1, __ATOMIC_SEQ_CST);
 }
 
 void sockinfo_tcp::clean_obj()
