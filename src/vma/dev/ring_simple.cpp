@@ -234,6 +234,9 @@ void ring_simple::create_resources()
 
 	m_tx_num_wr_free = m_tx_num_wr;
 
+	// Temporary fix for rd #4213201
+	m_tx_num_wr_free--;
+
 #ifdef DEFINED_TSO
 	memset(&m_tso, 0, sizeof(m_tso));
 	if (safe_mce_sys().enable_tso && (1 == validate_tso(get_if_index()))) {
