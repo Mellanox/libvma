@@ -836,11 +836,11 @@ void mce_sys_var::get_env_params()
 				MAX_SUPPORTED_IB_INLINE_SIZE, tx_max_inline);
 		tx_max_inline = MAX_SUPPORTED_IB_INLINE_SIZE;
 	}
-	unsigned int cx4_max_tx_wre_for_inl = (16 * 1024 * 64) / (VMA_ALIGN(VMA_ALIGN(tx_max_inline - 12, 64) + 12, 64));
-	if (tx_num_wr > cx4_max_tx_wre_for_inl) {
+	unsigned int cx5_max_tx_wre_for_inl = (2* 16 * 1024 * 64) / (VMA_ALIGN(VMA_ALIGN(tx_max_inline - 12, 64) + 12, 64));
+	if (tx_num_wr > cx5_max_tx_wre_for_inl) {
 		vlog_printf(VLOG_WARNING,"For the given VMA_TX_MAX_INLINE [%d], VMA_TX_WRE [%d] must be smaller than %d\n",
-				tx_max_inline, tx_num_wr, cx4_max_tx_wre_for_inl);
-		tx_num_wr = cx4_max_tx_wre_for_inl;
+				tx_max_inline, tx_num_wr, cx5_max_tx_wre_for_inl);
+		tx_num_wr = cx5_max_tx_wre_for_inl;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MC_LOOPBACK)) != NULL)
