@@ -1922,6 +1922,9 @@ tcp_rexmit(struct tcp_pcb *pcb)
   /* Keep the unsent queue sorted. */
   seg = pcb->unacked;
   pcb->unacked = seg->next;
+  if(pcb->unacked == NULL){
+    pcb->last_unacked = NULL;
+  }
 
   cur_seg = &(pcb->unsent);
   while (*cur_seg &&
