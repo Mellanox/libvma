@@ -1873,6 +1873,23 @@ tcp_rexmit_rto(struct tcp_pcb *pcb)
     return;
   }
 
+  if (pcb->unsent != NULL && TCP_SEQ_GT(pcb->unacked->seqno, pcb->unsent->seqno)) {
+    // Move fast-retransmitted segments to unacked - RTO after fast retransmission
+    struct tcp_seg *rexmit_start = pcb->unsent;
+    struct tcp_seg *rexmit_end = pcb->unsent;
+    while (rexmit_end->next != NULL &&
+           TCP_SEQ_GT(pcb->unacked->seqno, rexmit_end->next->seqno)) {
+        rexmit_end = rexmit_end->next;
+    }
+
+    pcb->unsent = rexmit_end->next;
+    if (pcb->unsent == NULL) {
+        pcb->last_unsent = NULL;
+    }
+
+    rexmit_end->next = pcb->unacked;
+    pcb->unacked = rexmit_start;
+  }
   /* Move all unacked segments to the head of the unsent queue */
   for (seg = pcb->unacked; seg->next != NULL; seg = seg->next);
   /* concatenate unsent queue after unacked queue */
