@@ -1103,6 +1103,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       /* If there's nothing left to acknowledge, stop the retransmit
          timer, otherwise reset it to start again */
       if(pcb->unacked == NULL) {
+        pcb->last_unacked = NULL;
         if (persist) {
           /* start persist timer */
           pcb->persist_cnt = 0;
