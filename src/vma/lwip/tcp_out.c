@@ -177,13 +177,9 @@ tcp_send_fin(struct tcp_pcb *pcb)
 {
   /* first, try to add the fin to the last unsent segment */
   if (pcb->unsent != NULL) {
-    struct tcp_seg *last_unsent;
-    for (last_unsent = pcb->unsent; last_unsent->next != NULL;
-         last_unsent = last_unsent->next);
-
-    if ((TCPH_FLAGS(last_unsent->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0) {
+    if ((TCPH_FLAGS(pcb->last_unsent->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0) {
       /* no SYN/FIN/RST flag in the header, we can add the FIN flag */
-      TCPH_SET_FLAG(last_unsent->tcphdr, TCP_FIN);
+      TCPH_SET_FLAG(pcb->last_unsent->tcphdr, TCP_FIN);
       pcb->flags |= TF_FIN;
       return ERR_OK;
     }
@@ -500,16 +496,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
    * pos records progress as data is segmented.
    */
 
-  /* Find the tail of the unsent queue. */
-  if (pcb->unsent != NULL) {
+  if (pcb->last_unsent != NULL) {
     u16_t space;
     u16_t unsent_optlen;
 
-    if (!pcb->last_unsent || pcb->last_unsent->next) {
-      /* @todo: this could be sped up by keeping last_unsent in the pcb */
-      for (pcb->last_unsent = pcb->unsent; pcb->last_unsent->next != NULL;
-           pcb->last_unsent = pcb->last_unsent->next);
-    }
     /* Usable space at the end of the last unsent segment */
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
@@ -586,7 +576,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     }
   } else {
 #if TCP_OVERSIZE
-    pcb->last_unsent = NULL;
     LWIP_ASSERT("unsent_oversize mismatch (pcb->unsent is NULL)",
                 pcb->unsent_oversize == 0);
 #endif /* TCP_OVERSIZE */
@@ -865,9 +854,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
   if (pcb->unsent == NULL) {
     pcb->unsent = seg;
   } else {
-    struct tcp_seg *useg;
-    for (useg = pcb->unsent; useg->next != NULL; useg = useg->next);
-    useg->next = seg;
+    pcb->last_unsent->next = seg;
   }
   pcb->last_unsent = seg;
 #if TCP_OVERSIZE
@@ -1867,8 +1854,6 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
 void
 tcp_rexmit_rto(struct tcp_pcb *pcb)
 {
-  struct tcp_seg *seg;
-
   if (pcb->unacked == NULL) {
     return;
   }
@@ -1891,14 +1876,14 @@ tcp_rexmit_rto(struct tcp_pcb *pcb)
     pcb->unacked = rexmit_start;
   }
   /* Move all unacked segments to the head of the unsent queue */
-  for (seg = pcb->unacked; seg->next != NULL; seg = seg->next);
   /* concatenate unsent queue after unacked queue */
-  seg->next = pcb->unsent;
-  if (pcb->unsent == NULL) {
+  if(pcb->unsent){
+    pcb->last_unacked->next = pcb->unsent;
+  }else{
     /* If there are no unsent segments, update last_unsent to the last unacked */
-    pcb->last_unsent = seg;
+    pcb->last_unsent = pcb->last_unacked;
 #if TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK
-    pcb->unsent_oversize = seg->oversize_left;
+    pcb->unsent_oversize = pcb->last_unacked->oversize_left;
 #endif /* TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK*/
   }
   /* unsent queue is the concatenated queue (of unacked, unsent) */
