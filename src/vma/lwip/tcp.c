@@ -1306,7 +1306,7 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
     tcp_tx_segs_free(pcb, pcb->unsent);
     tcp_tx_segs_free(pcb, pcb->unacked);
     pcb->unacked = pcb->unsent = NULL;
-    pcb->last_unsent = NULL;
+    pcb->last_unacked = pcb->last_unsent = NULL;
 #if TCP_OVERSIZE
     pcb->unsent_oversize = 0;
 #endif /* TCP_OVERSIZE */
