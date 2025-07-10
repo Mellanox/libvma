@@ -359,10 +359,12 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     if (pcb->unacked != NULL) {
       tcp_tx_segs_free(pcb, pcb->unacked);
       pcb->unacked = NULL;
+      pcb->last_unacked = NULL;
     }
     if (pcb->unsent != NULL) {
       tcp_tx_segs_free(pcb, pcb->unsent);
       pcb->unsent = NULL;
+      pcb->last_unsent = NULL;
     }
 #if TCP_QUEUE_OOSEQ    
     if (pcb->ooseq != NULL) {
