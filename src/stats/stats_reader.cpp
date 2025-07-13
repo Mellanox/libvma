@@ -371,6 +371,7 @@ void print_global_stats(global_stats_t* p_global_stats)
 		printf("======================================================\n");
 		printf("\tGLOBAL_STATS\n");
 		printf(FORMAT_STATS_32bit, "TCP seg alloc failures:", p_global_stats->n_tcp_seg_alloc_failures);
+		printf(FORMAT_STATS_32bit, "TCP seg pool size:", p_global_stats->n_tcp_seg_pool_size);
 		printf(FORMAT_STATS_32bit, "TCP socket objects:", p_global_stats->n_tcp_socket_objs);
 		printf(FORMAT_STATS_32bit, "TCP socket objects max:", p_global_stats->n_tcp_socket_objs_max);
 		printf(FORMAT_STATS_32bit, "All socket objects:", p_global_stats->n_socket_objs);
