@@ -8,10 +8,16 @@
 #if defined(DEFINED_DIRECT_VERBS)
 
 #include <sys/mman.h>
+#include <set>
+#include <mutex>
 #include "cq_mgr_mlx5.h"
 #include "vma/util/utils.h"
 #include "vlogger/vlogger.h"
 #include "ring_simple.h"
+
+// Track Bflame address duplicates
+static std::set<void*> g_blueflame_addresses;
+static std::mutex g_blueflame_lock;
 
 #undef  MODULE_NAME
 #define MODULE_NAME 	"qpm_mlx5"
@@ -142,6 +148,23 @@ void qp_mgr_eth_mlx5::init_sq()
 		qp_logpanic("vma_ib_mlx5_get_qp failed (errno=%d %m)", errno);
 	}
 
+	// Track Bflame address duplicates
+	if (m_mlx5_qp.bf.reg) {
+		g_blueflame_lock.lock();
+		if (g_blueflame_addresses.find(m_mlx5_qp.bf.reg) != g_blueflame_addresses.end()) {
+			g_blueflame_lock.unlock();
+			qp_logwarn("BlueFlame address %p is already in use! QPN: %u",
+				   m_mlx5_qp.bf.reg, m_mlx5_qp.qpn);
+		} else {
+			g_blueflame_addresses.insert(m_mlx5_qp.bf.reg);
+			g_blueflame_lock.unlock();
+			qp_logdbg("Registered BlueFlame address %p for QPN: %u",
+				  m_mlx5_qp.bf.reg, m_mlx5_qp.qpn);
+		}
+	}else{
+		qp_logwarn("No BlueFlame address found for QPN: %u", m_mlx5_qp.qpn);
+	}
+
 	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_qp.sq.buf;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
 	m_sq_wqes_end	 = (uint8_t*)((uintptr_t)m_mlx5_qp.sq.buf + m_mlx5_qp.sq.wqe_cnt * m_mlx5_qp.sq.stride);
@@ -220,6 +243,23 @@ void qp_mgr_eth_mlx5::down()
 //! Cleanup resources QP itself will be freed by base class DTOR
 qp_mgr_eth_mlx5::~qp_mgr_eth_mlx5()
 {
+	// Track Bflame address duplicates
+	if (m_mlx5_qp.bf.reg) {
+		g_blueflame_lock.lock();
+		auto it = g_blueflame_addresses.find(m_mlx5_qp.bf.reg);
+		if (it != g_blueflame_addresses.end()) {
+			g_blueflame_addresses.erase(it);
+			g_blueflame_lock.unlock();
+			qp_logdbg("Unregistered BlueFlame address %p for QPN: %u", 
+				  m_mlx5_qp.bf.reg, m_mlx5_qp.qpn);
+		} else {
+			g_blueflame_lock.unlock();
+			qp_logwarn("WARNING: Attempted to unregister BlueFlame address %p "
+				   "for QPN: %u but it was not found in tracking set", 
+				   m_mlx5_qp.bf.reg, m_mlx5_qp.qpn);
+		}
+	}
+
 	if (m_rq_wqe_idx_to_wrid) {
 		if (0 != munmap(m_rq_wqe_idx_to_wrid, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid))) {
 			qp_logerr("Failed deallocating memory with munmap m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
