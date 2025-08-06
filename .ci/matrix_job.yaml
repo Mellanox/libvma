@@ -14,6 +14,13 @@ kubernetes:
   nodeSelector: 'beta.kubernetes.io/os=linux'
   limits: '{memory: 8Gi, cpu: 8000m}'
   requests: '{memory: 8Gi, cpu: 8000m}'
+  arch_table:
+    x86_64:
+      nodeSelector: 'kubernetes.io/arch=amd64'
+      jnlpImage: 'harbor.mellanox.com/toolbox/c3po-jnlp:latest'
+    aarch64:
+      nodeSelector: 'kubernetes.io/arch=arm64'
+      jnlpImage: 'harbor.mellanox.com/toolbox/c3po-jnlp:latest'
 
 volumes:
   - {mountPath: /hpc/local/bin, hostPath: /hpc/local/bin}
@@ -330,4 +337,4 @@ failFast: false
 
 taskName: '${flags}/${name}/${axis_index}'
 
-timeout_minutes: 120
+timeout_minutes: 150

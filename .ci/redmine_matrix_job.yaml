@@ -11,6 +11,10 @@ kubernetes:
   nodeSelector: 'beta.kubernetes.io/os=linux'
   limits: '{memory: 1Gi, cpu: 1000m}'
   requests: '{memory: 1Gi, cpu: 1000m}'
+  arch_table:
+    x86_64:
+      nodeSelector: 'kubernetes.io/arch=amd64'
+      jnlpImage: 'harbor.mellanox.com/toolbox/c3po-jnlp:latest'
 
 failFast: false
 timeout_minutes: 20
