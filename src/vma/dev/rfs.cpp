@@ -120,7 +120,7 @@ rfs::~rfs()
 	delete[] m_sinks_list;
 
 	while (m_attach_flow_data_vector.size() > 0) {
-		delete m_attach_flow_data_vector.back();
+		free(m_attach_flow_data_vector.back());
 		m_attach_flow_data_vector.pop_back();
 	}
 }
