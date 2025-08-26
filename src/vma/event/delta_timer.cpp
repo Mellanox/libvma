@@ -200,19 +200,11 @@ void timer::process_registered_timers()
 	timer_node_t* iter = m_list_head;
 	timer_node_t* next_iter;
 	while (iter && (iter->delta_time_msec == milliseconds(0))) {
-		tmr_logfuncall("timer expired on %p", iter->handler);
+		timer_handler * handler = iter->handler.load();
+		tmr_logfuncall("timer expired on %p", handler);
 
-		/* Special check is need to protect
-		 * from using destroyed object pointed by handler
-		 * See unregister_timer_event()
-		 * Object can be destoyed from another thread (lock protection)
-		 * and from current thread (lock and lock count condition)
-		 */
-		if (iter->handler &&
-			!iter->lock_timer.trylock() &&
-			(1 == iter->lock_timer.is_locked_by_me())) {
-			iter->handler->handle_timer_expired(iter->user_data);
-			iter->lock_timer.unlock();
+		if (handler) {
+			handler->safe_handle_timer_expired(iter->user_data);
 		}
 		next_iter = iter->next;
 
@@ -225,13 +217,13 @@ void timer::process_registered_timers()
 			break;
 
 		case ONE_SHOT_TIMER:
-			remove_timer(iter, iter->handler);
+			remove_timer(iter, handler);
 			break;
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		case INVALID_TIMER:
 		default:
-			tmr_logwarn("invalid timer expired on %p", iter->handler);
+			tmr_logwarn("invalid timer expired on %p", handler);
 			break;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END

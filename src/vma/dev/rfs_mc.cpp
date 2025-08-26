@@ -56,7 +56,7 @@ bool rfs_mc::prepare_flow_spec()
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
 				attach_flow_data_ib_v1_t*  attach_flow_data_ib_v1 = NULL;
 
-				attach_flow_data_ib_v1 = new attach_flow_data_ib_v1_t(p_ring->m_p_qp_mgr);
+				attach_flow_data_ib_v1 = new_malloc<attach_flow_data_ib_v1_t>(p_ring->m_p_qp_mgr);
 
 				uint8_t dst_gid[16];
 				create_mgid_from_ipv4_mc_ip(dst_gid, p_ring->m_p_qp_mgr->get_partiton(), m_flow_tuple.get_dst_ip());
@@ -70,7 +70,7 @@ bool rfs_mc::prepare_flow_spec()
 #endif
 			}
 
-			attach_flow_data_ib_v2 = new attach_flow_data_ib_v2_t(p_ring->m_p_qp_mgr);
+			attach_flow_data_ib_v2 = new_malloc<attach_flow_data_ib_v2_t>(p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_ipv4_set(&(attach_flow_data_ib_v2->ibv_flow_attr.ipv4),
 						m_flow_tuple.get_dst_ip(),
@@ -88,7 +88,7 @@ bool rfs_mc::prepare_flow_spec()
 			{
 			attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
 
-			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(p_ring->m_p_qp_mgr);
+			attach_flow_data_eth = new_malloc<attach_flow_data_eth_ipv4_tcp_udp_t>(p_ring->m_p_qp_mgr);
 
 			uint8_t dst_mac[6];
 			create_multicast_mac_from_ip(dst_mac, m_flow_tuple.get_dst_ip());
