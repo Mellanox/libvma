@@ -1236,21 +1236,6 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		conn->m_sock_state = TCP_SOCK_INITED;
 	}
 
-	/* In general VMA should avoid calling unregister_timer_event() for the same timer handle twice.
-	 * It is protected by checking m_timer_handle for NULL value that should be under lock.
-	 * In order to save locking time a quick check is done first to ensure that indeed the specific
-	 * timer has not been freed (avoiding the lock/unlock).
-	 * The 2nd check is to avoid a race of the timer been freed while the lock has been taken.
-	 */
-	if (conn->m_timer_handle) {
-		conn->lock_tcp_con();
-		if (conn->m_timer_handle) {
-			g_p_event_handler_manager->unregister_timer_event(conn, conn->m_timer_handle);
-			conn->m_timer_handle = NULL;
-		}
-		conn->unlock_tcp_con();
-	}
-
 	conn->do_wakeup();
 }
 
