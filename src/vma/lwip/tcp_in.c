@@ -422,11 +422,13 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
 
     /* Send a SYN|ACK together with the MSS option. */
     rc = tcp_enqueue_flags(npcb, TCP_SYN | TCP_ACK);
-    if (rc != ERR_OK) {
+    if (rc == ERR_OK) {
+      rc = tcp_output(npcb);
+    }else{
       tcp_abandon(npcb, 0);
-      return rc;
     }
-    return tcp_output(npcb);
+    TCP_EVENT_ACCEPTED_PCB(pcb, npcb);
+    return rc;
   }
   return ERR_OK;
 }

@@ -308,6 +308,11 @@ private:
 
 	static err_t clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err);
 
+
+	// Called by L3_level_tcp_input to unlock a new pcb/socket.
+	// @param newpcb The new pcb. Can be nullptr.
+	static void accepted_pcb_cb(struct tcp_pcb *newpcb);
+
 	int accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, int __flags = 0);
 
 	// clone socket in accept call
