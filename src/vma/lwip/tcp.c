@@ -1237,6 +1237,18 @@ tcp_syn_handled(struct tcp_pcb_listen *pcb, tcp_syn_handled_fn syn_handled)
 }
 
 /**
+ * Used for specifying the function that should be when a accepted pcb is ready.
+ *
+ * @param pcb          Listen pcb
+ * @param accepted_pcb Callback function to call when the accepted pcb is ready.
+ */
+void
+tcp_accepted_pcb(struct tcp_pcb_listen *pcb, tcp_accepted_pcb_fn accepted_pcb)
+{
+  pcb->accepted_pcb = accepted_pcb;
+}
+
+/**
  * Used for specifying the function that should be called to clone pcb
  *
  * @param listen pcb to clone
