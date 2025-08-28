@@ -218,6 +218,14 @@ PACK_STRUCT_END
     else (ret) = ERR_ARG;                                           \
   } while (0)
 
+
+#define TCP_EVENT_ACCEPTED_PCB(pcb, newpcb)                                                        \
+do {                                                                                           \
+    if ((pcb)->accepted_pcb != NULL)                                                           \
+        (pcb)->accepted_pcb((newpcb));                                                         \
+} while (0)
+
+
 #define TCP_EVENT_SENT(pcb,space,ret)                          \
   do {                                                         \
     if((pcb)->sent != NULL)                                    \
