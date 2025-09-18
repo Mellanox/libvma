@@ -8,6 +8,8 @@
 #ifndef RFS_H
 #define RFS_H
 
+#include <stdlib.h>
+#include <type_traits>
 #include <vector>
 
 #include "vma/ib/base/verbs_extra.h"
@@ -213,6 +215,13 @@ public:
 	virtual bool 		rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 
 protected:
+	template <class T, typename ...Args>
+	T * new_malloc(Args ... args) {
+		static_assert(std::is_trivially_destructible<T>::value == true);
+		void * p = aligned_alloc(alignof(T), sizeof(T));
+		return new(p) T(args...);
+	}
+
 	flow_tuple		m_flow_tuple;
 	ring_slave*		m_p_ring;
 	rfs_rule_filter*	m_p_rule_filter;
