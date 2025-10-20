@@ -87,6 +87,23 @@
    fun:rdma_create_event_channel
    fun:_ZN15neigh_table_mgrC1Ev
 }
+{
+   rdma_create_event_channel_fp_leak
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   obj:/usr/lib/x86_64-linux-gnu/librdmacm.so.1.3.54.0
+   obj:/usr/lib/x86_64-linux-gnu/librdmacm.so.1.3.54.0
+   obj:/usr/lib/x86_64-linux-gnu/librdmacm.so.1.3.54.0
+   fun:rdma_create_event_channel
+   fun:_ZN15neigh_table_mgrC1Ev
+   fun:do_global_ctors_helper
+   fun:_Z15do_global_ctorsv
+   fun:socket_internal
+   fun:socket
+   fun:_Z7bringupPKi
+   fun:main
+}
 # false positive verbs
 {
    libibverbs Param ibv_exp_cmd_create_qp
