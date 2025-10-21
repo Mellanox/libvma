@@ -43,13 +43,17 @@
             name: "conf_file"
             default: ".ci/pipeline/release_matrix_job.yaml"
             description: "job config file. Do not change it"
+        - bool: 
+            name: "do_dr_build"
+            default: false
+            description: "Build DR weekly"
     pipeline-scm:
         scm:
             - git:
                 url: "{jjb_git}"
                 credentials-id: 'swx-jenkins_ssh_key'
                 branches: ['$sha1']
-                shallow-clone: true
+                shallow-clone: false
                 depth: 2
                 refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
                 browser: githubweb
