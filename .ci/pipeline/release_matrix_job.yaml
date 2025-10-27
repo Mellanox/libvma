@@ -24,6 +24,9 @@ volumes:
   - {mountPath: /auto/mswg/release/vma, hostPath: /auto/mswg/release/vma}
   # User profile for release
   - {mountPath: /var/home/swx-jenkins, hostPath: /labhome/swx-jenkins}
+  # for Antivirus
+  - {mountPath: /auto/BACKUP/logs_of_LOGS, hostPath: /auto/BACKUP/logs_of_LOGS}
+  - {mountPath: /auto/GLIT/SCRIPTS/HELPERS, hostPath: /auto/GLIT/SCRIPTS/HELPERS}
 
 empty_volumes:
   - {mountPath: /tmp/source_rpms, memory: true}
@@ -35,7 +38,9 @@ runs_on_dockers:
       uri: '$arch/$name/release',
       build_args: '--no-cache',
       arch: 'x86_64',
-      tag: '20250128'
+      tag: '20250128',
+      runAsUser: '6213',
+      runAsGroup: '101'
     }
 
 steps:
@@ -44,6 +49,12 @@ steps:
     run: |
       .ci/do_release.sh
     archiveArtifacts: pkg/build_pkg.log,pkg/packages/*.rpm
+
+  - name: Antivirus
+    enable: ${do_antivirus}
+    run: |
+      env WORKSPACE=$PWD .ci/antivirus.sh
+    archiveArtifacts: 'logs/'
 
 pipeline_start:
     shell: action
