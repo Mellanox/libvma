@@ -7,7 +7,7 @@ echo "**********************************"
 set -o pipefail
 
 print_help() {
-    set +xv  
+    set +xv
     echo -e "\n\n"
     echo "--------------------------------------------------"
     echo "Usage: release_folder=<release folder> release_tag=<release tag> [revision=<revision>] [do_release=<true|false>] $0"
@@ -69,16 +69,16 @@ if [ "${do_release}" = true ] ; then
         exit 1
     fi
 
-    if [[ -e "${DST_DIR}/${pkg_name}" || -e "${DST_DIR}/${tarball_name}" ]]; then 
+    if [[ -e "${DST_DIR}/${pkg_name}" || -e "${DST_DIR}/${tarball_name}" ]]; then
         echo "ERROR: [${DST_DIR}/${pkg_name}] or [${DST_DIR}/${tarball_name}] file already exist. Exit"
         exit 1
     fi
     files_dir=$(pwd)
     pushd "${release_folder}" || { echo "ERROR: Failed to pushd to ${release_folder}. Exit" ; exit 1; }
-    sudo -E -u swx-jenkins mkdir -p "$DST_DIR"
-    sudo -E -u swx-jenkins cp -v "${files_dir}/${pkg_folder}/${pkg_name}" "$DST_DIR"
-    sudo -E -u swx-jenkins cp -v "${files_dir}/${pkg_folder}/${tarball_name}" "$DST_DIR"
-    sudo -E -u swx-jenkins ln -s "${DST_DIR}/${pkg_name}" "${release_folder}/source_rpms/${pkg_name}"
+    mkdir -p "$DST_DIR"
+    cp -v "${files_dir}/${pkg_folder}/${pkg_name}" "$DST_DIR"
+    cp -v "${files_dir}/${pkg_folder}/${tarball_name}" "$DST_DIR"
+    ln -s "${DST_DIR}/${pkg_name}" "${release_folder}/source_rpms/${pkg_name}"
     popd || { echo "ERROR: Failed to popd from ${release_folder}. Exit" ; exit 1; }
 
     echo "INFO: Release found at $DST_DIR"
