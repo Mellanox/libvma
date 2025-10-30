@@ -39,6 +39,10 @@
             name: "do_antivirus"
             default: true
             description: "Run Antivirus scan."
+        - bool:
+            name: "do_blackduck"
+            default: true
+            description: "Run BlackDuck."
         - string:
             name: "notification_email"
             default: "{jjb_release_email}"
@@ -47,7 +51,7 @@
             name: "conf_file"
             default: ".ci/pipeline/release_matrix_job.yaml"
             description: "job config file. Do not change it"
-        - bool: 
+        - bool:
             name: "do_dr_build"
             default: false
             description: "Build DR weekly"
