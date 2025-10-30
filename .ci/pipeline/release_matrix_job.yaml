@@ -16,6 +16,9 @@ kubernetes:
       nodeSelector: 'kubernetes.io/arch=amd64'
       jnlpImage: 'nbu-harbor.gtm.nvidia.com/toolbox/c3po-jnlp:latest'
 
+credentials:
+  - {credentialsId: 'blackduck_api_token', type: 'string', variable: 'BLACKDUCK_API_TOKEN'}
+
 env:
   MAIL_FROM: jenkins@nvidia.com
 
@@ -42,10 +45,22 @@ runs_on_dockers:
       runAsUser: '6213',
       runAsGroup: '101'
     }
+  - {
+      name: 'blackduck',
+      file: '.ci/dockerfiles/Dockerfile.rhel8.6',
+      category: 'tool',
+      arch: 'x86_64',
+      tag: '20250630',
+      uri: 'vma/$arch/$name/bduck',
+      build_args: '--no-cache --target bduck',
+      runAsUser: '6213',
+      runAsGroup: '101'
+    }
 
 steps:
   - name: Release
-    parallel: false
+    containerSelector:
+      - "{name: 'rhel8.6', variant:1}"
     run: |
       if ${do_dr_build}; then
         git checkout tags/${release_tag}
@@ -58,6 +73,16 @@ steps:
     run: |
       env WORKSPACE=$PWD .ci/antivirus.sh
     archiveArtifacts: 'logs/'
+
+  - name: Blackduck
+    enable: ${do_blackduck}
+    containerSelector:
+      - "{name: 'blackduck', category:'tool', variant:1}"
+    run: |
+        .ci/blackduck_source.sh
+    archiveArtifacts: 'logs/'
+    credentialsId:
+      - "blackduck_api_token"
 
 pipeline_start:
     shell: action
