@@ -121,22 +121,6 @@ typedef ibv_device_attr                   	  vma_ibv_device_attr_ex;
 #define vma_send_wr_send_flags(wr)		(wr).send_flags
 #define vma_send_wr_opcode(wr)			(wr).opcode
 
-#ifdef DEFINED_TSO
-  #define VMA_IBV_WR_TSO                  (ibv_wr_opcode)IBV_WR_TSO
-  #define vma_check_dev_attr_tso(_attr)   1
-  #define vma_get_tso_caps(_attr)         (((vma_ibv_device_attr_ex *)(_attr))->tso_caps)
-  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) \
-		do { \
-			_attr.comp_mask |= IBV_QP_INIT_ATTR_MAX_TSO_HEADER; \
-			_attr.max_tso_header = _max_tso_header;   \
-		} while (0)
-  typedef struct ibv_tso_caps             vma_ibv_tso_caps;
-#else
-  #define VMA_IBV_WR_TSO                  (ibv_wr_opcode)IBV_WR_SEND
-  #define vma_check_dev_attr_tso(_attr)   0
-  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) ((void)0)
-#endif /* DEFINED_TSO */
-
 // Dummy send
 #ifdef DEFINED_IBV_WR_NOP
 #define vma_is_nop_supported(device_attr)    1

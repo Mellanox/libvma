@@ -255,20 +255,6 @@ else
     AC_MSG_RESULT([no])
 fi
 
-# Control TSO usage
-#
-AC_ARG_ENABLE([tso],
-    AS_HELP_STRING([--enable-tso],
-        [Enable TSO availability (default=no)]))
-AC_MSG_CHECKING(
-    [for tso support])
-if test "x$enable_tso" = xyes -a "x$vma_cv_attribute_ex_OPCODE_TSO" = xyes; then
-    AC_DEFINE_UNQUOTED([DEFINED_TSO], [1], [Define to 1 to use TSO])
-    AC_MSG_RESULT([yes])
-else
-    AC_MSG_RESULT([no])
-fi
-
 AC_MSG_CHECKING([for md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`
 AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])

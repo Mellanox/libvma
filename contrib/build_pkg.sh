@@ -54,9 +54,9 @@ contrib/build_pkg.sh -s
  * Prepare source package directly from github using tag or branch
 contrib/build_pkg.sh -s -i /tmp/libvma-9.0.2 -c 9.0.2
  * Pass none default configuration options
-contrib/build_pkg.sh -b -s -a "configure_options=--enable-tso"
+contrib/build_pkg.sh -b -s -a "configure_options=--enable-debug"
  * Create release
-env PRJ_RELEASE=1 contrib/build_pkg.sh -b -s -a "configure_options=--enable-tso"
+env PRJ_RELEASE=1 contrib/build_pkg.sh -b -s -a "configure_options=--enable-debug"
 EOF
             exit 1
             ;;

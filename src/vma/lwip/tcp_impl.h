@@ -287,14 +287,9 @@ do {                                                                            
 struct tcp_seg {
   struct tcp_seg *next;    /* used when putting segements on a queue */
   struct pbuf *p;          /* buffer containing data + TCP header */
-#if LWIP_TSO
-  u32_t seqno;
-  u32_t len;               /* the TCP length of this segment should allow >64K size */
-#else
   void *dataptr;           /* pointer to the TCP data in the pbuf */
   u32_t seqno;
   u16_t len;               /* the TCP length of this segment should allow >64K size */
-#endif /* LWIP_TSO */
 
 #if TCP_OVERSIZE_DBGCHECK
   u16_t oversize_left;     /* Extra bytes available at the end of the last
@@ -312,7 +307,6 @@ struct tcp_seg {
                                                checksummed into 'chksum' */
 #define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
 #define TF_SEG_OPTS_DUMMY_MSG	(u8_t)TCP_WRITE_DUMMY /* Include dummy send option */
-#define TF_SEG_OPTS_TSO         (u8_t)TCP_WRITE_TSO /* Use TSO send mode */
 
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };

@@ -289,11 +289,9 @@ bool dst_entry::resolve_ring()
 				delete[] m_sge;
 				m_sge = NULL;
 			}
-#ifdef DEFINED_TSO
-			m_sge = new (nothrow) struct ibv_sge [m_p_ring->get_max_send_sge()];
-#else
+
 			m_sge = new (nothrow) struct ibv_sge [2];
-#endif /* DEFINED_TSO */
+
 			if (!m_sge) {
 				dst_logpanic("%s Failed to allocate send SGE", to_str().c_str());
 			}
@@ -616,11 +614,9 @@ void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_ke
 		delete[] m_sge;
 		m_sge = NULL;
 	}
-#ifdef DEFINED_TSO
-	m_sge = new (nothrow) struct ibv_sge [m_p_ring->get_max_send_sge()];
-#else
+
 	m_sge = new (nothrow) struct ibv_sge [2];
-#endif /* DEFINED_TSO */
+
 	if (!m_sge) {
 		dst_logpanic("%s Failed to allocate send SGE", to_str().c_str());
 	}

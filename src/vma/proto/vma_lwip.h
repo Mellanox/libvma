@@ -21,8 +21,6 @@ typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT, /* 0x08 */
 	/* nop send operation. */
 	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY, /* 0x10 */
-	/* large segment offload operation. */
-	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO, /* 0x20 */
 	/* sendfile operation. */
 	VMA_TX_FILE  = TCP_WRITE_FILE, /* 0x40 */
 

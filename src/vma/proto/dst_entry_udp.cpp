@@ -93,9 +93,6 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		//so we just need to update the payload addr + len
 		m_sge[1].length = p_iov[0].iov_len;
 		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
-#ifdef DEFINED_TSO
-		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
-#endif /* DEFINED_TSO */
 	} else {
 		m_p_send_wqe = &m_not_inline_send_wqe;
 
@@ -121,9 +118,6 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		// Update the payload addr + len
 		m_sge[1].length = sz_data_payload + hdr_len;
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
-#ifdef DEFINED_TSO
-		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
-#endif /* DEFINED_TSO */
 
 		// Calc payload start point (after the udp header if present else just after ip header)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
@@ -248,9 +242,6 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
 		m_sge[1].length = sz_user_data_to_copy + hdr_len;
-#ifdef DEFINED_TSO
-		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
-#endif /* DEFINED_TSO */
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 
 		dst_udp_logfunc("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", m_header.to_str().c_str(),
@@ -277,55 +268,6 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 	return sz_data_payload;
 }
 
-#ifdef DEFINED_TSO
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr)
-{
-	ssize_t sz_data_payload = check_payload_size(p_iov, sz_iov);
-	if (unlikely(0 > sz_data_payload)) { // The errno is set inside check_payload_size.
-		return -1;
-	}
-
-	// Calc udp payload size
-	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
-	if (sz_udp_payload <= (size_t)m_max_udp_payload_size) {
-		attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
-		return fast_send_not_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
-	} else {
-                attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM);
-		return fast_send_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
-	}
-}
-
-ssize_t dst_entry_udp::slow_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr,
-				 struct vma_rate_limit_t &rate_limit, int flags /*= 0*/,
-				 socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
-{
-	ssize_t ret_val = 0;
-
-	dst_udp_logdbg("In slow send");
-
-	prepare_to_send(rate_limit, false);
-
-	if (m_b_force_os || !m_b_is_offloaded) {
-		struct sockaddr_in to_saddr;
-		to_saddr.sin_port = m_dst_port;
-		to_saddr.sin_addr.s_addr = m_dst_ip.get_in_addr();
-		to_saddr.sin_family = AF_INET;
-		dst_udp_logdbg("Calling to tx_os");
-		ret_val = sock->tx_os(call_type, p_iov, sz_iov, flags, (const struct sockaddr*)&to_saddr, sizeof(struct sockaddr_in));
-	}
-	else {
-		if (!is_valid()) { // That means that the neigh is not resolved yet
-			ret_val = pass_buff_to_neigh(p_iov, sz_iov);
-		}
-		else {
-			ret_val = fast_send(p_iov, sz_iov, attr);
-		}
-	}
-
-	return ret_val;
-}
-#else
 ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 				bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/)
 {
@@ -378,15 +320,11 @@ ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 
 	return ret_val;
 }
-#endif /* DEFINED_TSO */
 
 void dst_entry_udp::init_sge()
 {
 	m_sge[0].length = m_header.m_total_hdr_len;
 	m_sge[0].addr = m_header.m_actual_hdr_addr;
-#ifdef DEFINED_TSO
-	m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
-#endif /* DEFINED_TSO */
 }
 
 ssize_t dst_entry_udp::check_payload_size(const iovec* p_iov, ssize_t sz_iov)

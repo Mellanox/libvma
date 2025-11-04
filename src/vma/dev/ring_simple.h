@@ -66,14 +66,7 @@ public:
 	virtual uint32_t	get_underly_qpn() { return m_p_qp_mgr->get_underly_qpn(); }
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
-        virtual uint32_t	get_max_inline_data();
-#ifdef DEFINED_TSO
-        virtual uint32_t	get_max_send_sge(void);
-        virtual uint32_t	get_max_payload_sz(void);
-        virtual uint16_t	get_max_header_sz(void);
-	virtual uint32_t	get_tx_lkey(ring_user_id_t id) { NOT_IN_USE(id); return m_tx_lkey; }
-        virtual bool		is_tso(void);
-#endif /* DEFINED_TSO */
+    virtual uint32_t	get_max_inline_data();
 
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
@@ -94,9 +87,7 @@ protected:
 	void			create_resources();
 	virtual void		init_tx_buffers(uint32_t count);
 	virtual void		inc_cq_moderation_stats(size_t sz_data);
-#ifdef DEFINED_TSO
-        void                    set_tx_num_wr(int32_t num_wr) { m_tx_num_wr = m_tx_num_wr_free = num_wr; }
-#endif /* DEFINED_TSO */
+
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint32_t		get_mtu() { return m_mtu; }
 
@@ -183,16 +174,6 @@ private:
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
 	uint32_t		m_mtu;
-
-#ifdef DEFINED_TSO
-	struct {
-		/* Maximum length of TCP payload for TSO */
-		uint32_t max_payload_sz;
-
-		/* Maximum length of header for TSO */
-		uint16_t max_header_sz;
-	} m_tso;
-#endif /* DEFINED_TSO */
 };
 
 class ring_eth : public ring_simple
