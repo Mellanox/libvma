@@ -97,11 +97,7 @@ do_check_env
 TARGET=${TARGET:=all}
 i=0
 if [ "$TARGET" == "all" -o "$TARGET" == "default" ]; then
-    target_list[$i]="default: --disable-tso"
-    i=$((i+1))
-fi
-if [ "$TARGET" == "all" -o "$TARGET" == "extra" ]; then
-    target_list[$i]="extra: --enable-tso"
+    target_list[$i]="default: "
     i=$((i+1))
 fi
 

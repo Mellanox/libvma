@@ -34,15 +34,6 @@ public:
 	inline void disable_hw_csum (ibv_send_wr &) {}
 #endif
 
-#ifdef DEFINED_TSO
-	inline void  enable_tso(ibv_send_wr &wr, void *hdr, uint16_t hdr_sz, uint16_t mss) {
-		vma_send_wr_opcode(wr) = VMA_IBV_WR_TSO;
-		wr.tso.hdr = hdr;
-		wr.tso.hdr_sz = hdr_sz;
-		wr.tso.mss = mss;
-	}
-#endif /* DEFINED_TSO */
-
 	inline void enable_inline (ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= IBV_SEND_INLINE; }
 };
 

@@ -160,10 +160,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 			/* Set up a tcp_seg structure. */
 			in_data.inseg.next = NULL;
 			in_data.inseg.len = p->tot_len;
-#if LWIP_TSO
-#else
 			in_data.inseg.dataptr = p->payload;
-#endif /* LWIP_TSO */
 			in_data.inseg.p = p;
 			in_data.inseg.tcphdr = in_data.tcphdr;
 			in_data.inseg.flags = 0;
@@ -741,147 +738,13 @@ tcp_oos_insert_segment(struct tcp_pcb *pcb, struct tcp_seg *cseg, struct tcp_seg
     if (next &&
         TCP_SEQ_GT(in_data->seqno + cseg->len, next->tcphdr->seqno)) {
       /* We need to trim the incoming segment. */
-#if LWIP_TSO
-      cseg->len = (u32_t)(next->tcphdr->seqno - in_data->seqno);
-#else
       cseg->len = (u16_t)(next->tcphdr->seqno - in_data->seqno);
-#endif /* LWIP_TSO */
       pbuf_realloc(cseg->p, cseg->len);
     }
   }
   cseg->next = next;
 }
 #endif /* TCP_QUEUE_OOSEQ */
-
-#if LWIP_TSO
-/**
- * Called by tcp_output() to shrink TCP segment to lastackno.
- * This call should process retransmitted TSO segment.
- *
- * @param pcb the tcp_pcb for the TCP connection used to send the segment
- * @param seg the tcp_seg to send
- * @param ackqno current ackqno
- * @return number of freed pbufs
- */
-static u32_t
-tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
-{
-  struct pbuf *cur_p;
-  struct pbuf *p;
-  u32_t len;
-  u32_t count = 0;
-  u8_t optflags = 0;
-  u8_t optlen;
-
-  if ((NULL == seg) || (NULL == seg->p) ||
-      !(TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg)))) {
-    return count;
-  }
-
-#if LWIP_TCP_TIMESTAMPS
-  if ((pcb->flags & TF_TIMESTAMP)) {
-    optflags |= TF_SEG_OPTS_TS;
-  }
-#endif /* LWIP_TCP_TIMESTAMPS */
-
-  optlen = LWIP_TCP_OPT_LENGTH(optflags);
-
-  /* Just shrink first pbuf */
-  if (TCP_SEQ_GT((seg->seqno + seg->p->len - optlen - TCP_HLEN), ackno)) {
-    len = ackno - seg->seqno;
-    if (optlen > 0) {
-      /* tcp_output_segment() relies on aligned options area */
-      len &= 0xfffffffc;
-    }
-
-    seg->len -= len;
-    seg->seqno += len;
-    seg->tcphdr->seqno = htonl(seg->seqno);
-    p = seg->p;
-    p->tot_len -= len;
-    p->len -= len;
-    p->payload = (u8_t *)p->payload + len;
-    MEMMOVE(p->payload, seg->tcphdr, TCP_HLEN);
-    seg->tcphdr = p->payload;
-    return count;
-  }
-
-  cur_p = seg->p->next;
-
-  if (cur_p) {
-    /* Process more than first pbuf */
-    len = seg->p->len - TCP_HLEN - optlen;
-    seg->len -= len;
-    seg->seqno += len;
-    seg->tcphdr->seqno = htonl(seg->seqno);
-    seg->p->tot_len -= len;
-    seg->p->len = TCP_HLEN + optlen;
-  }
-
-  while (cur_p) {
-    if (TCP_SEQ_GT((seg->seqno + cur_p->len), ackno)) {
-      break;
-    } else {
-      seg->len -= cur_p->len;
-      seg->seqno += cur_p->len;
-      seg->tcphdr->seqno = htonl(seg->seqno);
-      seg->p->tot_len -= cur_p->len;
-      seg->p->next = cur_p->next;
-
-      p = cur_p;
-      cur_p = p->next;
-      p->next = NULL;
-
-      if (p->type  == PBUF_RAM) {
-        external_tcp_tx_pbuf_free(pcb, p);
-      } else {
-        pbuf_free(p);
-      }
-      count++;
-    }
-  }
-
-  if (cur_p) {
-    len = ackno - seg->seqno;
-    if (optlen > 0) {
-      /* tcp_output_segment() relies on aligned options area */
-      len &= 0xfffffffc;
-    }
-
-    seg->len -= len;
-    seg->seqno += len;
-    seg->tcphdr->seqno = htonl(seg->seqno);
-    cur_p->tot_len -= len - optlen;
-    cur_p->len -= len - optlen;
-    cur_p->payload = (u8_t *)cur_p->payload + ((s32_t)len - (s32_t)optlen);
-
-    /* Add space for TCP header */
-    cur_p->tot_len += TCP_HLEN;
-    cur_p->len += TCP_HLEN;
-    cur_p->payload = (u8_t *)cur_p->payload - TCP_HLEN;
-    MEMCPY(cur_p->payload, seg->tcphdr, TCP_HLEN);
-    seg->tcphdr = cur_p->payload;
-
-    p = seg->p;
-    seg->p = cur_p;
-
-    if (p->type  == PBUF_RAM) {
-      external_tcp_tx_pbuf_free(pcb, p);
-    } else {
-      pbuf_free(p);
-    }
-    count++;
-  }
-
-#if TCP_TSO_DEBUG
-    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
-                ("tcp_shrink: count: %-5d unsent %s\n",
-                		count, _dump_seg(pcb->unsent)));
-#endif /* TCP_TSO_DEBUG */
-
-  return count;
-}
-#endif /* LWIP_TSO */
 
 /**
  * Called by tcp_process. Checks if the given segment is an ACK for outstanding
@@ -1065,25 +928,8 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
-#if LWIP_TSO
-      while (pcb->unacked != NULL) {
-
-        /* The purpose of this processing is to avoid to send again
-         * data from TSO segment that is partially acknowledged.
-         * This TSO segment was not released in tcp_receive() because
-         * input data processing releases whole acknowledged segment only.
-         */
-        if (pcb->unacked->flags & TF_SEG_OPTS_TSO) {
-            pcb->snd_queuelen -= tcp_shrink_segment(pcb, pcb->unacked, in_data->ackno);
-        }
-
-        if (!(TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno))) {
-          break;
-        }
-#else
       while (pcb->unacked != NULL &&
              TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno)) {
-#endif /* LWIP_TSO */
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
                                       ntohl(pcb->unacked->tcphdr->seqno),
                                       ntohl(pcb->unacked->tcphdr->seqno) +
@@ -1274,10 +1120,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
           LWIP_ASSERT("pbuf_header failed", 0);
         }
       }
-#if LWIP_TSO
-#else
       in_data->inseg.dataptr = p->payload;
-#endif /* LWIP_TSO */
       in_data->inseg.len -= pcb->rcv_nxt - in_data->seqno;
       in_data->inseg.tcphdr->seqno = in_data->seqno = pcb->rcv_nxt;
     }
@@ -1362,11 +1205,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 TCP_SEQ_GT(in_data->seqno + in_data->tcplen,
                            next->tcphdr->seqno)) {
               /* inseg cannot have FIN here (already processed above) */
-#if LWIP_TSO
-              in_data->inseg.len = (u32_t)(next->tcphdr->seqno - in_data->seqno);
-#else
               in_data->inseg.len = (u16_t)(next->tcphdr->seqno - in_data->seqno);
-#endif /* LWIP_TSO */
               if (TCPH_FLAGS(in_data->inseg.tcphdr) & TCP_SYN) {
                 in_data->inseg.len -= 1;
               }
@@ -1530,11 +1369,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                   if (cseg != NULL) {
                     if (TCP_SEQ_GT(prev->tcphdr->seqno + prev->len, in_data->seqno)) {
                       /* We need to trim the prev segment. */
-#if LWIP_TSO
-                      prev->len = (u32_t)(in_data->seqno - prev->tcphdr->seqno);
-#else
                       prev->len = (u16_t)(in_data->seqno - prev->tcphdr->seqno);
-#endif /* LWIP_TSO */
                       pbuf_realloc(prev->p, prev->len);
                     }
                     prev->next = cseg;
@@ -1556,11 +1391,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 if (next->next != NULL) {
                   if (TCP_SEQ_GT(next->tcphdr->seqno + next->len, in_data->seqno)) {
                     /* We need to trim the last segment. */
-#if LWIP_TSO
-                    next->len = (u32_t)(in_data->seqno - next->tcphdr->seqno);
-#else
                     next->len = (u16_t)(in_data->seqno - next->tcphdr->seqno);
-#endif /* LWIP_TSO */
                     pbuf_realloc(next->p, next->len);
                   }
                   /* check if the remote side overruns our receive window */

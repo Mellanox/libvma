@@ -41,9 +41,6 @@ ring_bond::ring_bond(int if_index) :
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_max_inline_data = 0;
-#ifdef DEFINED_TSO
-	m_max_send_sge = 0;
-#endif /* DEFINED_TSO */
 
 	print_val();
 }
@@ -577,21 +574,12 @@ void ring_bond::update_cap(ring_slave *slave)
 {
 	if (NULL == slave) {
 		m_max_inline_data = (uint32_t)(-1);
-#ifdef DEFINED_TSO
-		m_max_send_sge = (uint32_t)(-1);
-#endif /* DEFINED_TSO */
 		return ;
 	}
 
 	m_max_inline_data = (m_max_inline_data == (uint32_t)(-1) ? 
 		slave->get_max_inline_data() :
 		min(m_max_inline_data, slave->get_max_inline_data()));
-
-#ifdef DEFINED_TSO
-	m_max_send_sge = (m_max_send_sge == (uint32_t)(-1) ? 
-		slave->get_max_send_sge() :
-		min(m_max_send_sge, slave->get_max_send_sge()));
-#endif /* DEFINED_TSO */
 }
 
 void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_ring)
@@ -823,28 +811,6 @@ uint32_t ring_bond::get_max_inline_data()
 {
         return m_max_inline_data;
 }
-
-#ifdef DEFINED_TSO
-uint32_t ring_bond::get_max_send_sge(void)
-{
-        return m_max_send_sge;
-}
-
-uint32_t ring_bond::get_max_payload_sz(void)
-{
-        return 0;
-}
-
-uint16_t ring_bond::get_max_header_sz(void)
-{
-        return 0;
-}
-
-bool ring_bond::is_tso(void)
-{
-        return false;
-}
-#endif /* DEFINED_TSO */
 
 int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 {

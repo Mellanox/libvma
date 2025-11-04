@@ -74,17 +74,7 @@ public:
 	virtual void        post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc); // Post for receive single mem_buf_desc
 	void                post_recv_buffers(descq_t* p_buffers, size_t count); // Post for receive a list of mem_buf_desc
 	int                 send(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
-
-#ifdef DEFINED_TSO
-	inline uint32_t     get_max_inline_data() const {
-		return m_qp_cap.max_inline_data;
-	}
-	inline uint32_t     get_max_send_sge() const {
-		return m_qp_cap.max_send_sge;
-	}
-#else
 	uint32_t            get_max_inline_data() const {return m_max_inline_data; }
-#endif /* DEFINED_TSO */
 	int                 get_port_num() const { return m_port_num; }
 	virtual uint16_t    get_partiton() const { return 0; };
 	virtual uint32_t    get_underly_qpn() const { return 0; };
@@ -107,29 +97,20 @@ public:
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
+
 protected:
 	struct ibv_qp*      m_qp;
 	uint64_t*           m_rq_wqe_idx_to_wrid;
-
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;
 	ib_ctx_handler*     m_p_ib_ctx_handler;
-
-#ifdef DEFINED_TSO
-	struct ibv_qp_cap   m_qp_cap;
-#else
 	uint32_t            m_max_inline_data;
-#endif /* DEFINED_TSO */
 	uint32_t            m_max_qp_wr;
-
 	cq_mgr*             m_p_cq_mgr_rx;
 	cq_mgr*             m_p_cq_mgr_tx;
-
 	uint32_t            m_rx_num_wr;
 	uint32_t            m_tx_num_wr;
-
 	bool                m_hw_dummy_send_support;
-
 	uint32_t            m_n_sysvar_rx_num_wr_to_post_recv;
 	const uint32_t      m_n_sysvar_tx_num_wr_to_signal;
 	const uint32_t      m_n_sysvar_rx_prefetch_bytes_before_poll;
@@ -143,7 +124,6 @@ protected:
 	// send wr
 	uint32_t            m_n_unsignaled_count;
 	mem_buf_desc_t*     m_p_last_tx_mem_buf_desc; // Remembered so we can list several mem_buf_desc_t on a single notification request
-
 	mem_buf_desc_t*     m_p_prev_rx_desc_pushed;
 
 	// generating packet IDs

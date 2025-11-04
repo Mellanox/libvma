@@ -53,11 +53,7 @@ void register_sys_now(sys_now_fn fn);
 extern u16_t lwip_tcp_mss;
 
 #if LWIP_3RD_PARTY_L3
-#if LWIP_TSO
-typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, u16_t flags);
-#else
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
-#endif /* LWIP_TSO */
 void register_ip_output(ip_output_fn fn);
 
 typedef ssize_t (*sys_readv_fn)(int __fd, const struct iovec *iov, int iovcnt);
@@ -426,23 +422,6 @@ struct tcp_pcb {
 
   /* Delayed ACK control: number of quick acks */
   u8_t quickack;
-
-#if LWIP_TSO
-  /* TSO description */
-  struct {
-    /* Maximum length of memory buffer */
-    u32_t max_buf_sz;
-
-    /* Maximum length of TCP payload for TSO */
-    u32_t max_payload_sz;
-
-    /* Maximum length of header for TSO */
-    u16_t max_header_sz;
-
-    /* Maximum number of SGE */
-    u32_t max_send_sge;
-  } tso;
-#endif /* LWIP_TSO */
 };
 
 typedef u16_t (*ip_route_mtu_fn)(struct tcp_pcb *pcb);
@@ -506,13 +485,6 @@ void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
 #define          tcp_nagle_disable(pcb)   ((pcb)->flags |= TF_NODELAY)
 #define          tcp_nagle_enable(pcb)    ((pcb)->flags &= ~TF_NODELAY)
 #define          tcp_nagle_disabled(pcb)  (((pcb)->flags & TF_NODELAY) != 0)
-
-#if LWIP_TSO
-#define          tcp_tso(pcb)          ((pcb)->tso.max_payload_sz)
-#else
-#define          tcp_tso(pcb)          (0)
-#endif /* LWIP_TSO */
-
 #define          tcp_accepted(pcb) LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", \
 		get_tcp_state(pcb) == LISTEN)
 
@@ -533,7 +505,6 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_FLAG_MORE 0x02
 #define TCP_WRITE_REXMIT    0x08
 #define TCP_WRITE_DUMMY     0x10
-#define TCP_WRITE_TSO       0x20
 #define TCP_WRITE_FILE      0x40
 
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,

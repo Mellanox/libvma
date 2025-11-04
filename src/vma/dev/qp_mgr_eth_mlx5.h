@@ -50,12 +50,7 @@ private:
 	inline void	set_signal_in_next_send_wqe();
 	int		send_to_wire(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	inline int	fill_wqe(ibv_send_wr* p_send_wqe);
-#ifdef DEFINED_TSO
-	int		fill_wqe_lso(ibv_send_wr* pswr);
-	inline void	ring_doorbell(uint64_t* wqe, int db_method, int num_wqebb, int num_wqebb_top = 0);
-#else
 	inline void	ring_doorbell(uint64_t* wqe, int num_wqebb, int num_wqebb_top = 0);
-#endif /* DEFINED_TSO */
 	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);
 	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len, mem_buf_desc_t* buffer);
 

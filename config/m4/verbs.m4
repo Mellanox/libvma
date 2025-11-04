@@ -80,7 +80,6 @@ CHECK_VERBS_MEMBER([struct ibv_device_attr_ex.orig_attr], [infiniband/verbs.h], 
 CHECK_VERBS_MEMBER([struct ibv_alloc_dm_attr.length], [infiniband/verbs.h], [IBV_DM])
 CHECK_VERBS_MEMBER([struct ibv_packet_pacing_caps.qp_rate_limit_min], [infiniband/verbs.h], [IBV_PACKET_PACING_CAPS])
 CHECK_VERBS_MEMBER([struct ibv_qp_rate_limit_attr.max_burst_sz], [infiniband/verbs.h], [IBV_QP_SUPPORT_BURST])
-CHECK_VERBS_ATTRIBUTE([IBV_WR_TSO], [infiniband/verbs.h], [OPCODE_TSO])
 
 CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
 CHECK_VERBS_MEMBER([struct mlx5dv_clock_info.last_cycles], [infiniband/mlx5dv.h], [IBV_CLOCK_INFO])

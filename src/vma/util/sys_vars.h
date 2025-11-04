@@ -291,9 +291,6 @@ public:
 
 	uint32_t 	tx_num_segs_tcp;
 	uint32_t 	tx_num_bufs;
-#ifdef DEFINED_TSO
-	uint32_t 	tx_buf_size;
-#endif /* DEFINED_TSO */
 	uint32_t 	tx_num_wr;
 	uint32_t	tx_num_wr_to_signal;
 	uint32_t 	tx_max_inline;
@@ -374,9 +371,6 @@ public:
 
 	bool 		enable_ipoib;
 	bool 		enable_socketxtreme;
-#ifdef DEFINED_TSO
-	bool 		enable_tso;
-#endif /* DEFINED_TSO */
 	uint32_t	timer_netlink_update_msec;
 
 	//Neigh parameters
@@ -447,9 +441,6 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_TX_NUM_SEGS_TCP				"VMA_TX_SEGS_TCP"
 #define SYS_VAR_TX_NUM_BUFS				"VMA_TX_BUFS"
-#ifdef DEFINED_TSO
-#define SYS_VAR_TX_BUF_SIZE				"VMA_TX_BUF_SIZE"
-#endif /* DEFINED_TSO */
 #define SYS_VAR_TX_NUM_WRE				"VMA_TX_WRE"
 #define SYS_VAR_TX_NUM_WRE_TO_SIGNAL			"VMA_TX_WRE_BATCHING"
 #define SYS_VAR_TX_MAX_INLINE				"VMA_TX_MAX_INLINE"
@@ -525,9 +516,6 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_IPOIB					"VMA_IPOIB"
 #define SYS_VAR_SOCKETXTREME				"VMA_SOCKETXTREME"
-#ifdef DEFINED_TSO
-#define SYS_VAR_TSO					"VMA_TSO"
-#endif /* DEFINED_TSO */
 
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
@@ -565,9 +553,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
-#ifdef DEFINED_TSO
-#define MCE_DEFAULT_TX_BUF_SIZE				(0)
-#endif /* DEFINED_TSO */
 #define MCE_DEFAULT_TX_NUM_WRE				(2048)
 #define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
 #define MCE_DEFAULT_TX_MAX_INLINE			(204) //+18(always inline ETH header) = 222
@@ -671,9 +656,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
 #define MCE_DEFAULT_SOCKETXTREME			(false)
-#ifdef DEFINED_TSO
-#define MCE_DEFAULT_TSO					(true)
-#endif /* DEFINED_TSO */
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 #define MCE_DEFAULT_DEFERRED_CLOSE (false)

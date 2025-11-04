@@ -110,9 +110,6 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_mtu = p_ndev->get_mtu();
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
-#ifdef DEFINED_TSO
-	memset(&m_tso, 0, sizeof(m_tso));
-#endif /* DEFINED_TSO */
 
 	m_socketxtreme.active = safe_mce_sys().enable_socketxtreme;
 	INIT_LIST_HEAD(&m_socketxtreme.ec_list);
@@ -233,24 +230,6 @@ void ring_simple::create_resources()
 
 	// Temporary fix for rd #4213201
 	m_tx_num_wr_free--;
-
-#ifdef DEFINED_TSO
-	memset(&m_tso, 0, sizeof(m_tso));
-	if (safe_mce_sys().enable_tso && (1 == validate_tso(get_if_index()))) {
-		if (vma_check_dev_attr_tso(m_p_ib_ctx->get_ibv_device_attr())) {
-			const vma_ibv_tso_caps *caps = &vma_get_tso_caps(m_p_ib_ctx->get_ibv_device_attr_ex());
-			if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) ||
-				ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
-				m_tso.max_payload_sz = caps->max_tso;
-				/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
-				m_tso.max_header_sz = 94;
-			}
-		}
-	}
-	ring_logdbg("ring attributes: m_tso = %d", is_tso());
-	ring_logdbg("ring attributes: m_tso:max_payload_sz = %d", get_max_payload_sz());
-	ring_logdbg("ring attributes: m_tso:max_header_sz = %d", get_max_header_sz());
-#endif /* DEFINED_TSO */
 
 	m_flow_tag_enabled = m_p_ib_ctx->get_flow_tag_capability();
 	ring_logdbg("ring attributes: m_flow_tag_enabled = %d", m_flow_tag_enabled);
@@ -649,10 +628,8 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, v
 	}
 
 	auto_unlocker lock(m_lock_ring_tx);
-#ifdef DEFINED_TSO
-#else
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey;
-#endif /* DEFINED_TSO */
+
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
@@ -667,12 +644,10 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, v
 #endif
 
 	auto_unlocker lock(m_lock_ring_tx);
-#ifdef DEFINED_TSO
-#else
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey;
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
-#endif /* DEFINED_TSO */
+
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
@@ -1042,25 +1017,3 @@ uint32_t ring_simple::get_max_inline_data()
 {
 	return m_p_qp_mgr->get_max_inline_data();
 }
-
-#ifdef DEFINED_TSO
-uint32_t ring_simple::get_max_send_sge(void)
-{
-	return m_p_qp_mgr->get_max_send_sge();
-}
-
-uint32_t ring_simple::get_max_payload_sz(void)
-{
-	return m_tso.max_payload_sz;
-}
-
-uint16_t ring_simple::get_max_header_sz(void)
-{
-	return m_tso.max_header_sz;
-}
-
-bool ring_simple::is_tso(void)
-{
-	return (m_tso.max_payload_sz && m_tso.max_header_sz);
-}
-#endif /* DEFINED_TSO */
