@@ -3,7 +3,7 @@ job: LIBVMA
 
 step_allow_single_selector: false
 
-registry_host: harbor.mellanox.com
+registry_host: nbu-harbor.gtm.nvidia.com
 registry_auth: swx-infra_harbor_credentials
 registry_path: /swx-infra/media
 
@@ -17,10 +17,10 @@ kubernetes:
   arch_table:
     x86_64:
       nodeSelector: 'kubernetes.io/arch=amd64'
-      jnlpImage: 'harbor.mellanox.com/toolbox/c3po-jnlp:latest'
+      jnlpImage: '${registry_host}/toolbox/c3po-jnlp:latest'
     aarch64:
       nodeSelector: 'kubernetes.io/arch=arm64'
-      jnlpImage: 'harbor.mellanox.com/toolbox/c3po-jnlp:latest'
+      jnlpImage: '${registry_host}/toolbox/c3po-jnlp:latest'
 
 volumes:
   - {mountPath: /hpc/local/bin, hostPath: /hpc/local/bin}
@@ -42,19 +42,20 @@ env:
 
 runs_on_dockers:
 # doca-host
-  - {name: 'rhel8.6-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel9.0-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.6-x86_64', url: '${registry_host}/hpcx/x86_64/rhel8.6/base', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel9.0-x86_64', url: '${registry_host}/hpcx/x86_64/rhel9.0/base', category: 'base', arch: 'x86_64'}
   - {name: 'rhel9.4-aarch64', file: '.ci/dockerfiles/Dockerfile.rhel9.4', category: 'base', arch: 'aarch64', tag: '20250203', uri: 'vma/$arch/$name/build', build_args: '--build-arg ARCH=aarch64 --no-cache'}
-  - {name: 'ub24.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
-  - {name: 'ub24.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu24.04/base', category: 'base', arch: 'aarch64'}
-  - {name: 'sl15sp4-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/sles15sp4/base', category: 'base', arch: 'x86_64'}
-  - {name: 'rhel8.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'base', arch: 'x86_64'}
-  - {name: 'ub22.04-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
-  - {name: 'ub22.04-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
+  - {name: 'ub24.04-x86_64', url: '${registry_host}/hpcx/x86_64/ubuntu24.04/base', category: 'base', arch: 'x86_64'}
+  - {name: 'ub24.04-aarch64', url: '${registry_host}/hpcx/aarch64/ubuntu24.04/base', category: 'base', arch: 'aarch64'}
+  - {name: 'sl15sp4-x86_64', url: '${registry_host}/hpcx/x86_64/sles15sp4/base', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.6-inbox-x86_64', url: '${registry_host}/hpcx/x86_64/rhel8.6/builder:inbox', category: 'base', arch: 'x86_64'}
+  - {name: 'ub22.04-x86_64', url: '${registry_host}/hpcx/x86_64/ubuntu22.04/base', category: 'base', arch: 'x86_64'}
+  - {name: 'ub22.04-aarch64', url: '${registry_host}/hpcx/aarch64/ubuntu22.04/base', category: 'base', arch: 'aarch64'}
 # tool
-  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'toolbox', url: '${registry_host}/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', file: '.ci/dockerfiles/Dockerfile.rhel8.6', category: 'tool', arch: 'x86_64', tag: '20250630', uri: 'vma/$arch/$name/bduck', build_args: '--no-cache --target bduck'}
-  - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.58', category: 'tool', arch: 'x86_64', tag: '0.0.58'}
+  - {name: 'header-check', url: '${registry_host}/toolbox/header_check:0.0.58', category: 'tool', arch: 'x86_64', tag: '0.0.58'}
+  - {name: 'secret-scan', url: '${registry_host}/toolbox/secret_scan:0.0.27', arch: 'x86_64', tag: '0.0.27', category: 'tool'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
@@ -98,6 +99,18 @@ steps:
     archiveArtifacts: '*.log,*.tar.gz'
     parallel: false
 
+  - name: Secret Scan
+    credentialsId: 'mellanox_github_credentials'
+    enable: ${do_secretscan}
+    containerSelector:
+      - "{name: 'secret-scan', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      env GITHUB_TOKEN=$MELLANOX_GH_TOKEN /opt/nvidia/secret_scan.py --path $WORKSPACE --git-repo $WORKSPACE --report-file secret_scan.html
+    archiveArtifacts: '*.html'
+    parallel: false
+
   - name: Install Doca-host
     containerSelector:
       - "{category: 'base'}"
@@ -105,12 +118,12 @@ steps:
       - "{nodeLabel: 'skip-agent'}"
     run: |
       echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
+      .ci/scripts/doca_install.sh
 
   - name: Install Doca-host on Tools
     run: |
       echo "Installing DOCA: ${DOCA_VERSION} ..."
-      .ci/scripts/doca_install.sh 
+      .ci/scripts/doca_install.sh
     containerSelector:
       - "{name: 'style', category: 'tool'}"
     agentSelector:
@@ -125,7 +138,7 @@ steps:
     enable: ${do_build}
     run: |
       [ "x${do_build}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh 
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_build=${action} ./contrib/test_jenkins.sh
     parallel: false
     onfail: |
       ./.ci/artifacts.sh
@@ -320,7 +333,7 @@ steps:
         .ci/blackduck_source.sh
       fi
     archiveArtifacts: 'logs/'
-    credentialsId: 
+    credentialsId:
       - "swx-jenkins2-svc-gerrit-ssh-key"
       - "blackduck_api_token"
 
