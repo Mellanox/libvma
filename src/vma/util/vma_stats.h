@@ -210,15 +210,13 @@ typedef struct {
 typedef enum {
 	RING_ETH = 0,
 	RING_ETH_DIRECT,
-	RING_TAP,
-	RING_IB
+	RING_TAP
 } ring_type_t;
 
 static const char * const ring_type_str[] = {
 	"RING_ETH",
 	"RING_ETH_DIRECT",
-	"RING_TAP",
-	"RING_IB"
+	"RING_TAP"
 };
 
 // Ring stat info

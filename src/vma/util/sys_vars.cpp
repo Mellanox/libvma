@@ -34,8 +34,6 @@
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
-#include "vma/proto/igmp_mgr.h"
-
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/command.h"
@@ -571,7 +569,6 @@ void mce_sys_var::get_env_params()
 	thread_mode		= MCE_DEFAULT_THREAD_MODE;
 	buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
 	mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
-	enable_ipoib		= MCE_DEFAULT_IPOIB_FLAG;
 	enable_socketxtreme	= MCE_DEFAULT_SOCKETXTREME;
 	handle_fork		= MCE_DEFAULT_FORK_SUPPORT;
 	handle_bf		= MCE_DEFAULT_BF_FLAG;
@@ -1197,9 +1194,6 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_FORK)) != NULL)
 		handle_fork = atoi(env_ptr) ? true : false;
-
-	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
-		enable_ipoib = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
 		close_on_dup2 = atoi(env_ptr) ? true : false;

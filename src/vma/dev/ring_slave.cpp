@@ -7,7 +7,6 @@
 #include "ring_slave.h"
 
 #include "vma/proto/ip_frag.h"
-#include "vma/proto/igmp_mgr.h"
 #include "vma/dev/rfs_mc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/sock/fd_collection.h"
@@ -61,7 +60,6 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type):
 	p_slave = p_ndev->get_slave(get_if_index());
 
 	/* Configure ring_slave() fields */
-	m_transport_type = p_ndev->get_transport_type();
 	m_local_if = p_ndev->get_local_addr();
 
 	/* Set the same ring active status as related slave has for all ring types
@@ -222,7 +220,7 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
 		rfs_rule_filter* l2_mc_ip_filter = NULL;
-		if ((m_transport_type == VMA_TRANSPORT_IB && 0 == get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
+		if (m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
 				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
@@ -232,7 +230,7 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			if ((m_transport_type == VMA_TRANSPORT_IB && 0 == get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
+			if (m_b_sysvar_eth_mc_l2_only_rules) {
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
 			try {
@@ -374,7 +372,7 @@ bool ring_slave::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	} else if (flow_spec_5t.is_udp_mc()) {
 		int keep_in_map = 1;
 		flow_spec_2t_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
+		if (m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) {
@@ -590,78 +588,38 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		}
 	}
 
-	// Validate transport type headers
-	switch (m_transport_type) {
-	case VMA_TRANSPORT_IB:
-	{
-		// Get the data buffer start pointer to the ipoib header pointer
-		struct ipoibhdr* p_ipoib_h = (struct ipoibhdr*)(p_rx_wc_buf_desc->p_buffer + GRH_HDR_LEN);
+	uint16_t h_proto = p_eth_h->h_proto;
 
-		transport_header_len = GRH_HDR_LEN + IPOIB_HDR_LEN;
+	ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
+			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
+			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
+			htons(h_proto));
 
-		// Validate IPoIB header
-		if (unlikely(p_ipoib_h->ipoib_header != htonl(IPOIB_HEADER))) {
-			ring_logwarn("Rx buffer dropped - Invalid IPOIB Header Type (%#x : %#x)", p_ipoib_h->ipoib_header, htonl(IPOIB_HEADER));
-			return false;
-		}
+	// Handle VLAN header as next protocol
+	struct vlanhdr* p_vlan_hdr = NULL;
+	uint16_t packet_vlan = 0;
+	if (h_proto == htons(ETH_P_8021Q)) {
+		p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + ETH_HDR_LEN);
+		transport_header_len = ETH_VLAN_HDR_LEN;
+		h_proto = p_vlan_hdr->h_vlan_encapsulated_proto;
+		packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
+	} else {
+		transport_header_len = ETH_HDR_LEN;
 	}
-	break;
-	case VMA_TRANSPORT_ETH:
-	{
-//		printf("\nring_slave::rx_process_buffer\n");
-//		{
-//			struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
-//
-//			int i = 0;
-//			printf("p_eth_h->h_dest [0]=%d, [1]=%d, [2]=%d, [3]=%d, [4]=%d, [5]=%d\n",
-//					(uint8_t)p_eth_h->h_dest[0], (uint8_t)p_eth_h->h_dest[1], (uint8_t)p_eth_h->h_dest[2], (uint8_t)p_eth_h->h_dest[3], (uint8_t)p_eth_h->h_dest[4], (uint8_t)p_eth_h->h_dest[5]);
-//			printf("p_eth_h->h_source [0]=%d, [1]=%d, [2]=%d, [3]=%d, [4]=%d, [5]=%d\n",
-//					(uint8_t)p_eth_h->h_source[0], (uint8_t)p_eth_h->h_source[1], (uint8_t)p_eth_h->h_source[2], (uint8_t)p_eth_h->h_source[3], (uint8_t)p_eth_h->h_source[4], (uint8_t)p_eth_h->h_source[5]);
-//
-//			while(i++<62){
-//				printf("%d, ", (uint8_t)p_rx_wc_buf_desc->p_buffer[i]);
-//			}
-//			printf("\n");
-//		}
 
-		uint16_t h_proto = p_eth_h->h_proto;
-
-		ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
-				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
-				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
-				htons(h_proto));
-
-		// Handle VLAN header as next protocol
-		struct vlanhdr* p_vlan_hdr = NULL;
-		uint16_t packet_vlan = 0;
-		if (h_proto == htons(ETH_P_8021Q)) {
-			p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + ETH_HDR_LEN);
-			transport_header_len = ETH_VLAN_HDR_LEN;
-			h_proto = p_vlan_hdr->h_vlan_encapsulated_proto;
-			packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
-		} else {
-			transport_header_len = ETH_HDR_LEN;
-		}
-
-		//TODO: Remove this code when handling vlan in flow steering will be available. Change this code if vlan stripping is performed.
-		if((m_partition & VLAN_VID_MASK) != packet_vlan) {
-			ring_logfunc("Rx buffer dropped- Mismatched vlan. Packet vlan = %d, Local vlan = %d", packet_vlan, m_partition & VLAN_VID_MASK);
-			return false;
-		}
-
-		// Validate IP header as next protocol
-		if (unlikely(h_proto != htons(ETH_P_IP))) {
-			ring_logwarn("Rx buffer dropped - Invalid Ethr Type (%#x : %#x)", p_eth_h->h_proto, htons(ETH_P_IP));
-			return false;
-		}
-	}
-	break;
-	default:
-		ring_logwarn("Rx buffer dropped - Unknown transport type %d", m_transport_type);
+	//TODO: Remove this code when handling vlan in flow steering will be available. Change this code if vlan stripping is performed.
+	if((m_partition & VLAN_VID_MASK) != packet_vlan) {
+		ring_logfunc("Rx buffer dropped- Mismatched vlan. Packet vlan = %d, Local vlan = %d", packet_vlan, m_partition & VLAN_VID_MASK);
 		return false;
 	}
 
-	// Jump to IP header - Skip IB (GRH and IPoIB) or Ethernet (MAC) header sizes
+	// Validate IP header as next protocol
+	if (unlikely(h_proto != htons(ETH_P_IP))) {
+		ring_logwarn("Rx buffer dropped - Invalid Ethr Type (%#x : %#x)", p_eth_h->h_proto, htons(ETH_P_IP));
+		return false;
+	}
+
+	// Jump to IP header - Skip Ethernet (MAC) header sizes
 	sz_data -= transport_header_len;
 
 	// Validate size for IPv4 header
@@ -709,16 +667,9 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 
 	// Handle fragmentation
 	p_rx_wc_buf_desc->rx.n_frags = 1;
-	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) { // Currently we don't expect to receive fragments
-		//for disabled fragments handling:
-		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
-		ring_logwarn("packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, frag_offset=%d, id=%d, proto=%s[%d], transport type=%s, (local if: %d.%d.%d.%d)",
-				NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
-				(sz_data > ip_tot_len ? ip_tot_len : sz_data), n_frag_offset, ntohs(p_ip_h->id),
-				iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol, (m_transport_type ? "ETH" : "IB"),
-				NIPQUAD(local_addr));
-		return false;*/
-#if 1 //handle fragments
+
+	// Currently we don't expect to receive fragments.
+	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) {
 		// Update fragments descriptor with datagram base address and length
 		p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_ip_h + ip_hdr_len;
 		p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len;
@@ -743,21 +694,12 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		for (tmp = p_rx_wc_buf_desc; tmp; tmp = tmp->p_next_desc) {
 			++p_rx_wc_buf_desc->rx.n_frags;
 		}
-#endif
 	}
 
 	if (p_rx_wc_buf_desc->rx.is_sw_csum_need && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
 		return false; // false ip checksum
 	}
 
-//We want to enable loopback between processes for IB
-#if 0
-	//AlexV: We don't support Tx MC Loopback today!
-	if (p_ip_h->saddr == m_local_if) {
-		ring_logfunc("Rx udp datagram discarded - mc loop disabled");
-		return false;
-	}
-#endif
 	rfs* p_rfs = NULL;
 
 	// Update the L3 info
@@ -854,31 +796,11 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	}
 	break;
 
-	case IPPROTO_IGMP:
-	{
-		struct igmp* p_igmp_h= (struct igmp*)((uint8_t*)p_ip_h + ip_hdr_len);
-		NOT_IN_USE(p_igmp_h); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
-		ring_logdbg("Rx IGMP packet info: type=%s (%d), group=%d.%d.%d.%d, code=%d",
-				priv_igmp_type_tostr(p_igmp_h->igmp_type), p_igmp_h->igmp_type,
-				NIPQUAD(p_igmp_h->igmp_group.s_addr), p_igmp_h->igmp_code);
-		if (m_transport_type == VMA_TRANSPORT_IB  || m_b_sysvar_eth_mc_l2_only_rules) {
-			ring_logdbg("Transport type is IB (or eth_mc_l2_only_rules), passing igmp packet to igmp_manager to process");
-			if(g_p_igmp_mgr) {
-				(g_p_igmp_mgr->process_igmp_packet(p_ip_h, m_local_if));
-				return false; // we return false in order to free the buffer, although we handled the packet
-			}
-			ring_logdbg("IGMP packet drop. IGMP manager does not exist.");
-			return false;
-		}
-		ring_logerr("Transport type is ETH, dropping the packet");
-		return false;
-	}
-	break;
-
 	default:
 		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
 		return false;
 	}
+
 	if (unlikely(p_rfs == NULL)) {
 		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
 				NIPQUAD(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->rx.dst.sin_port),

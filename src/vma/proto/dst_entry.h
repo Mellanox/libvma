@@ -22,7 +22,6 @@
 #include "vma/dev/net_device_val.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/dev/wqe_send_handler.h"
-#include "vma/dev/wqe_send_ib_handler.h"
 #include "vma/dev/ring.h"
 #include "vma/dev/ring_allocation_logic.h"
 #include "vma/infra/sender.h"
@@ -36,9 +35,8 @@ struct socket_data {
 	uint32_t pcp;
 };
 
-class dst_entry : public cache_observer, public tostr, public neigh_observer
+class dst_entry : public cache_observer, public tostr
 {
-
 public:
 	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, socket_data &sock_data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry();
@@ -62,8 +60,6 @@ public:
 	}
 	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	bool		update_ring_alloc_logic(int fd, lock_base & socket_lock, resource_allocation_key & ring_alloc_logic);
-
-	virtual transport_type_t get_obs_transport_type() const;
 
 	void		return_buffers_pool();
 	int		get_route_mtu();
@@ -134,11 +130,8 @@ protected:
 	virtual void 		configure_headers() { conf_hdrs_and_snd_wqe();};
 	bool 			conf_hdrs_and_snd_wqe();
 	virtual bool 		conf_l2_hdr_and_snd_wqe_eth();
-	virtual bool 		conf_l2_hdr_and_snd_wqe_ib();
 	virtual void 		init_sge() {};
-	bool 			alloc_transport_dep_res();
-	bool 			alloc_neigh_val(transport_type_t tranport);
-
+	bool				alloc_neigh_val();
 	void			do_ring_migration(lock_base& socket_lock, resource_allocation_key &old_key);
 	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
 	int			get_priority_by_tc_class(uint32_t tc_clas);

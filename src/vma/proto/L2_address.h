@@ -55,39 +55,4 @@ public:
 	}
 };
 
-class IPoIB_addr : public L2_address
-{
-public:
-
-	IPoIB_addr(): L2_address(), m_qpn(0)
-	{
-
-	}
-
-	//This constructor is for UC
-	IPoIB_addr(address_t const address) : L2_address(address, 20), m_qpn(0)
-	{
-		extract_qpn();
-	};
-	//This constructor is for MC
-	IPoIB_addr(uint32_t qpn, address_t const address) : L2_address(address, 20), m_qpn(qpn) {};
-	~IPoIB_addr() {};
-
-	virtual L2_address* clone() const
-	{
-		uint32_t qpn = ((IPoIB_addr*)this)->get_qpn();
-		return (new IPoIB_addr(qpn, get_address()));
-	}
-
-	void 		set_qpn(uint32_t qpn) { m_qpn = qpn; };
-	uint32_t 	get_qpn() { return m_qpn; };
-
-	const std::string to_str() const;
-
-private:
-	uint32_t 	m_qpn;
-
-	void		extract_qpn();
-};
-
 #endif /* L2_ADDRESS_H */

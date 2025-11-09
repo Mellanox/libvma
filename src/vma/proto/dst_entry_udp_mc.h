@@ -18,8 +18,6 @@ public:
 			resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_udp_mc();
 
-	virtual bool 	conf_l2_hdr_and_snd_wqe_ib();
-
 protected:
 	ip_address 	m_mc_tx_if_ip;
 	bool 		m_b_mc_loopback_enabled;

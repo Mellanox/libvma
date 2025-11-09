@@ -17,28 +17,6 @@
 extern uint8_t      g_vlogger_level;
 #define MODULE_NAME "NETLINK_TEST"
 
-class neigh_observer : public observer {
-	virtual void 		notify_cb(event * ev) {
-		if (ev) {
-/*
-			neigh_nl_event* net_ev = dynamic_cast <neigh_nl_event*> (ev);
-			if (net_ev->neigh_dst_addr_str == "1.1.1.12") {
-			//__log_info("!!! IN neigh_observer !!!");
-				__log_info("%s", ev->to_str().c_str());
-			}
-*/
-			__log_info("!!! IN neigh_observer !!!");
-			neigh_nl_event* nlev = dynamic_cast<neigh_nl_event*>(ev);
-			__log_info("%s", ev->to_str().c_str());
-			netlink_neigh_info info;
-			g_p_netlink_handler->get_neigh("1.1.1.1", 1, &info);
-			__log_info("AFTER get_neigh");
-			__log_info("NEIGH STATE=%s", nlev->get_neigh_info()->get_state2str().c_str());
-		}
-	}
-};
-
-
 class route_observer : public observer {
 	virtual void 		notify_cb(event * ev) {
 		if (ev) {
@@ -65,10 +43,8 @@ void netlink_test()
 	g_vlogger_level=3;
 	netlink_wrapper* nl = new netlink_wrapper();
 	g_p_netlink_handler=nl;
-	neigh_observer neigh_obs;
 	route_observer route_obs;
 	link_observer link_obs;
-	nl->register_event(nlgrpNEIGH, &neigh_obs);
 	//nl->register_event(nlgrpROUTE, &route_obs);
 	//nl->register_event(nlgrpLINK, &link_obs);
 	int nevents;

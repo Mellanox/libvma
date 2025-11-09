@@ -62,8 +62,6 @@ public:
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx->convert_hw_time_to_system_time(hwtime, systime); }
-	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
-	virtual uint32_t	get_underly_qpn() { return m_p_qp_mgr->get_underly_qpn(); }
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
     virtual uint32_t	get_max_inline_data();
@@ -195,23 +193,6 @@ public:
 			if (call_create_res) {
 				create_resources();
 			}
-		}
-	}
-protected:
-	virtual qp_mgr* create_qp_mgr(struct qp_mgr_desc *desc);
-};
-
-class ring_ib : public ring_simple
-{
-public:
-	ring_ib(int if_index,
-			ring* parent = NULL):
-		ring_simple(if_index, parent, RING_IB) {
-		net_device_val_ib* p_ndev =
-				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
-		if (p_ndev) {
-			m_partition = p_ndev->get_pkey();
-			create_resources();
 		}
 	}
 protected:

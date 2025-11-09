@@ -33,30 +33,6 @@ dst_entry_udp_mc::~dst_entry_udp_mc()
 	dst_udp_mc_logdbg("%s", to_str().c_str());
 }
 
-//The following function supposed to be called under m_lock
-bool dst_entry_udp_mc::conf_l2_hdr_and_snd_wqe_ib()
-{
-	bool ret_val = false;
-
-	dst_udp_mc_logfunc("%s", to_str().c_str());
-
-	ret_val = dst_entry_udp::conf_l2_hdr_and_snd_wqe_ib();
-
-	if (ret_val && !m_b_mc_loopback_enabled && m_p_send_wqe_handler) {
-		wqe_send_ib_handler *wqe_ib = dynamic_cast<wqe_send_ib_handler*>(m_p_send_wqe_handler);
-		if (wqe_ib) {
-			//Since checksum fails when packet contains an immediate header we don't enable an immediate header
-			//So MC loopback disable is NOT SUPPORTED!
-			//wqe_ib->enable_imm_data(m_inline_send_wqe);
-			//wqe_ib->enable_imm_data(m_not_inline_send_wqe);
-		}
-		else {
-			ret_val = false;
-		}
-	}
-	return ret_val;
-}
-
 void dst_entry_udp_mc::set_src_addr()
 {
 	m_pkt_src_ip = INADDR_ANY;
@@ -89,7 +65,7 @@ bool dst_entry_udp_mc::resolve_net_dev(bool is_connect)
 		if (m_p_net_dev_entry) {
 			m_p_net_dev_entry->get_val(m_p_net_dev_val);
 			if (m_p_net_dev_val) {
-				ret_val = alloc_transport_dep_res();
+				ret_val = alloc_neigh_val();
 			}
 			else {
 				dst_udp_mc_logdbg("Valid netdev value not found");

@@ -62,22 +62,4 @@ inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
 	return false;
 }
 
-inline bool is_ib_tcp_frame(mem_buf_desc_t* buff)
-{
-	struct ipoibhdr* p_ipoib_h = (struct ipoibhdr*)(buff->p_buffer + GRH_HDR_LEN);
-
-	// Validate IPoIB header
-	if (unlikely(p_ipoib_h->ipoib_header != htonl(IPOIB_HEADER))) {
-		return false;
-	}
-
-	size_t transport_header_len = GRH_HDR_LEN + IPOIB_HDR_LEN;
-
-	struct iphdr * p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
-	if (likely(p_ip_h->protocol == IPPROTO_TCP)) {
-		return true;
-	}
-	return false;
-}
-
 #endif//CQ_MGR_INL_H

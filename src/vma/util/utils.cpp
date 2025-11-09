@@ -94,8 +94,8 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 		return 0;
 	}
 
-	unsigned char vlan_if_address[MAX_L2_ADDR_LEN];
-	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, MAX_L2_ADDR_LEN, false);
+	unsigned char vlan_if_address[ETH_ALEN];
+	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, ETH_ALEN, false);
 	if (ADDR_LEN > 0) {
 		struct ifaddrs *ifaddr, *ifa;
 		int rc = getifaddrs(&ifaddr);
@@ -125,12 +125,9 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 
 			unsigned char tmp_mac[ADDR_LEN];
 			if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false)) {
-				int size_to_compare;
-				if (ADDR_LEN == ETH_ALEN) size_to_compare = ETH_ALEN;
-				else size_to_compare = IPOIB_HW_ADDR_GID_LEN;
-				int offset = ADDR_LEN - size_to_compare;
-				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, size_to_compare) && 0 == (ifa->ifa_flags & IFF_MASTER)) {
-					// A bond name cannot be a base name of an interface even if both have the same MAC(ethernet) or GID(IB) addresses
+				int offset = ADDR_LEN - ETH_ALEN;
+				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, ETH_ALEN) && 0 == (ifa->ifa_flags & IFF_MASTER)) {
+					// A bond name cannot be a base name of an interface even if both have the same MAC(ethernet)
 					snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
 					freeifaddrs(ifaddr);
 					__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
@@ -753,19 +750,12 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 	if (addr_len < bytes_len) return 0; // error not enough room was provided by caller
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (bytes_len == IPOIB_HW_ADDR_LEN && addr_len >= IPOIB_HW_ADDR_LEN) { // addr_len >= IPOIB_HW_ADDR_LEN is just for silencing coverity
-		sscanf(buf, IPOIB_HW_ADDR_SSCAN_FMT, IPOIB_HW_ADDR_SSCAN(addr));
-		__log_dbg("found IB %s address " IPOIB_HW_ADDR_PRINT_FMT " for interface %s", is_broadcast?"BR":"UC", IPOIB_HW_ADDR_PRINT_ADDR(addr), ifname);
-	}
-	else if (bytes_len == ETH_ALEN) {
-		sscanf(buf, ETH_HW_ADDR_SSCAN_FMT, ETH_HW_ADDR_SSCAN(addr));
+	if (bytes_len == ETH_ALEN && (0 < sscanf(buf, ETH_HW_ADDR_SSCAN_FMT, ETH_HW_ADDR_SSCAN(addr)))) {
 		__log_dbg("found ETH %s address" ETH_HW_ADDR_PRINT_FMT " for interface %s", is_broadcast?"BR":"UC", ETH_HW_ADDR_PRINT_ADDR(addr), ifname);
-	}
-	else {
-		return 0; // error
+		return bytes_len; // Success
 	}
 
-	return bytes_len; // success
+	return 0; // Failure
 }
 
 bool check_bond_device_exist(const char* ifname)
@@ -1023,43 +1013,6 @@ bool get_interface_oper_state(IN const char* interface_name, OUT char* curr_stat
 	char* p = strchr(curr_state, '\n');
 	if (p) *p = '\0'; // Remove the tailing 'new line" char
 	return true;
-}
-
-int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
-		const char prop_file[], const char *expected_val,
-		int val_size, OUT char *filename, OUT char* base_ifname)
-{
-	char mode[10];
-	char ifname_tmp[IFNAMSIZ];
-	char active_slave_name[IFNAMSIZ];
-
-	// In case of alias (ib0:xx) take only the device name for that interface (ib0)
-	strncpy(ifname_tmp, ifname, sizeof(ifname_tmp) - 1);
-	ifname_tmp[sizeof(ifname_tmp) - 1] = '\0';
-	base_ifname = strtok(ifname_tmp, ":");
-
-	if (ifflags & IFF_MASTER) {
-		// this is a bond interface, let find the slave
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!get_bond_active_slave_name(base_ifname, active_slave_name, IFNAMSIZ)) {
-			return -1;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		sprintf(filename, prop_file, active_slave_name);
-	} else {
-		sprintf(filename, prop_file, base_ifname);
-	}
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(filename, mode, val_size) <= 0) {
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	if (strncmp(mode, expected_val, val_size)) {
-		return 1;
-	} else {
-		return 0;
-	}
 }
 
 bool validate_user_has_cap_net_raw_privliges()

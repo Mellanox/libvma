@@ -391,14 +391,7 @@ void route_table_mgr::update_entry(INOUT route_entry* p_ent, bool b_register_to_
 							rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is BC address", p_ent->to_str().c_str());
 							// Need to route traffic to/from OS
 							// Prevent registering of net_device to route entry
-						}
-						// Check if: Local loopback over Ethernet case which was not supported before OFED 2.1
-						/*else if (p_ndv && (p_ndv->get_transport_type() == VMA_TRANSPORT_ETH) &&  (peer_ip == src_addr)) {
-							rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is an Ethernet unicast loopback route", p_ent->to_str().c_str());
-							// Need to route traffic to/from OS
-							// Prevent registering of net_device to route entry
-						}*/
-						else {
+						} else {
 							// register to net device for bonding events
 							p_ent->register_to_net_device();
 						}

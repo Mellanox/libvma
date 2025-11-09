@@ -60,11 +60,9 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max)
 	,m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max)
 	,m_p_cq_stat(&m_cq_stat_static) // use local copy of stats by default (on rx cq get shared memory stats)
-	,m_transport_type(m_p_ring->get_transport_type())
 	,m_p_next_rx_desc_poll(NULL)
 	,m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll)
 	,m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes)
-	,m_sz_transport_header(0)
 	,m_p_ib_ctx_handler(p_ib_ctx_handler)
 	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_comp_event_channel(p_comp_event_channel)
@@ -101,25 +99,9 @@ void cq_mgr::configure(int cq_size)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_cq, sizeof(ibv_cq));
-	switch (m_transport_type) {
-	case VMA_TRANSPORT_IB:
-		m_sz_transport_header = GRH_HDR_LEN;
-		break;
-	case VMA_TRANSPORT_ETH:
-		m_sz_transport_header = ETH_HDR_LEN;
-		break;
-	BULLSEYE_EXCLUDE_BLOCK_START
-	default:
-		cq_logpanic("Unknown transport type: %d", m_transport_type);
-		break;
-	BULLSEYE_EXCLUDE_BLOCK_END
-	}
 
 	if (m_b_is_rx) {
 		vma_stats_instance_create_cq_block(m_p_cq_stat);
-	}
-	
-	if (m_b_is_rx) {
 		m_b_is_rx_hw_csum_on = vma_is_rx_hw_csum_supported(m_p_ib_ctx_handler->get_ibv_device_attr());
 		cq_logdbg("RX CSUM support = %d", m_b_is_rx_hw_csum_on);
 	}
@@ -481,9 +463,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(ibv_wc* p_wce)
 
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
-		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
-				std::min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
-		//prefetch((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header);
+		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + ETH_HDR_LEN, 
+				std::min(p_mem_buf_desc->sz_data - ETH_HDR_LEN, (size_t)m_n_sysvar_rx_prefetch_bytes));
 	}
 
 	return p_mem_buf_desc;
@@ -772,29 +753,19 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 				if (p_recycle_buffers_last_wr_id) {
 					m_p_cq_stat->n_rx_pkt_drop++;
 					reclaim_recv_buffer_helper(buff);
-				} else {
-					bool procces_now = false;
-					if (m_transport_type == VMA_TRANSPORT_ETH) {
-						procces_now = is_eth_tcp_frame(buff);
-					}
-					if (m_transport_type == VMA_TRANSPORT_IB) {
-						procces_now = is_ib_tcp_frame(buff);
-					}
+				} else if (is_eth_tcp_frame(buff)) {
 					// We process immediately all non udp/ip traffic..
-					if (procces_now) {
-						buff->rx.is_vma_thr = true;
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(buff)) {
-							process_recv_buffer(buff, NULL);
-						}
+					buff->rx.is_vma_thr = true;
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
+						process_recv_buffer(buff, NULL);
 					}
-					else { //udp/ip traffic we just put in the cq's rx queue
-						m_rx_queue.push_back(buff);
-						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(buff_cur)) {
-							m_rx_queue.push_front(buff_cur);
-						}
+				} else { //udp/ip traffic we just put in the cq's rx queue
+					m_rx_queue.push_back(buff);
+					mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff_cur)) {
+						m_rx_queue.push_front(buff_cur);
 					}
 				}
 			}

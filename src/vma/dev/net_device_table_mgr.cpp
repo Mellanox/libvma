@@ -214,9 +214,6 @@ void net_device_table_mgr::update_tbl()
 				case ARPHRD_ETHER:
 					p_net_device_val = new net_device_val_eth(&desc);
 					break;
-				case ARPHRD_INFINIBAND:
-					p_net_device_val = new net_device_val_ib(&desc);
-					break;
 				default:
 					goto next;
 				}

@@ -28,7 +28,7 @@ public:
 	virtual bool rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
 protected:
-	virtual bool prepare_flow_spec();
+	virtual void prepare_flow_spec();
 };
 
 

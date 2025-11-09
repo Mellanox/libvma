@@ -183,11 +183,9 @@ protected:
 	const uint32_t		m_n_sysvar_cq_poll_batch_max;
 	const uint32_t		m_n_sysvar_progress_engine_wce_max;
 	cq_stats_t* 		m_p_cq_stat;
-	transport_type_t	m_transport_type;
 	mem_buf_desc_t*		m_p_next_rx_desc_poll;
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes_before_poll;
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
-	size_t			m_sz_transport_header;
 	ib_ctx_handler*		m_p_ib_ctx_handler;
 	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 private:

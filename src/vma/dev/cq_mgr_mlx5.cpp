@@ -292,29 +292,19 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 					if (p_recycle_buffers_last_wr_id) {
 						m_p_cq_stat->n_rx_pkt_drop++;
 						reclaim_recv_buffer_helper(m_rx_hot_buffer);
-					} else {
-						bool procces_now = false;
-						if (m_transport_type == VMA_TRANSPORT_ETH) {
-							procces_now = is_eth_tcp_frame(m_rx_hot_buffer);
-						}
-						if (m_transport_type == VMA_TRANSPORT_IB) {
-							procces_now = is_ib_tcp_frame(m_rx_hot_buffer);
-						}
+					} else if (is_eth_tcp_frame(m_rx_hot_buffer)) {
 						// We process immediately all non udp/ip traffic..
-						if (procces_now) {
-							m_rx_hot_buffer->rx.is_vma_thr = true;
-							if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(m_rx_hot_buffer)) {
-								process_recv_buffer(m_rx_hot_buffer, NULL);
-							}
+						m_rx_hot_buffer->rx.is_vma_thr = true;
+						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(m_rx_hot_buffer)) {
+							process_recv_buffer(m_rx_hot_buffer, NULL);
 						}
-						else { //udp/ip traffic we just put in the cq's rx queue
-							m_rx_queue.push_back(m_rx_hot_buffer);
-							mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
-							if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(buff_cur)) {
-								m_rx_queue.push_front(buff_cur);
-							}
+					} else { //udp/ip traffic we just put in the cq's rx queue
+						m_rx_queue.push_back(m_rx_hot_buffer);
+						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
+						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff_cur)) {
+							m_rx_queue.push_front(buff_cur);
 						}
 					}
 				}
@@ -342,30 +332,20 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 				if (p_recycle_buffers_last_wr_id) {
 					m_p_cq_stat->n_rx_pkt_drop++;
 					reclaim_recv_buffer_helper(buff);
-				} else {
-					bool procces_now = false;
-					if (m_transport_type == VMA_TRANSPORT_ETH) {
-						procces_now = is_eth_tcp_frame(buff);
-					}
-					if (m_transport_type == VMA_TRANSPORT_IB) {
-						procces_now = is_ib_tcp_frame(buff);
-					}
+				} else if (is_eth_tcp_frame(buff)) {
 					/* We process immediately all non udp/ip traffic.. */
-					if (procces_now) {
-						buff->rx.is_vma_thr = true;
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(buff)) {
-							process_recv_buffer(buff, NULL);
-						}
+					buff->rx.is_vma_thr = true;
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
+						process_recv_buffer(buff, NULL);
 					}
-					else { /* udp/ip traffic we just put in the cq's rx queue */
-						m_rx_queue.push_back(buff);
-						mem_buf_desc_t* buff_cur = m_rx_queue.front();
-						m_rx_queue.pop_front();
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-								!compensate_qp_poll_success(buff_cur)) {
-							m_rx_queue.push_front(buff_cur);
-						}
+				} else { /* udp/ip traffic we just put in the cq's rx queue */
+					m_rx_queue.push_back(buff);
+					mem_buf_desc_t* buff_cur = m_rx_queue.front();
+					m_rx_queue.pop_front();
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff_cur)) {
+						m_rx_queue.push_front(buff_cur);
 					}
 				}
 			}
@@ -442,8 +422,8 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 
 	VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
-	prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header,
-	std::min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
+	prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + ETH_HDR_LEN,
+	std::min(p_mem_buf_desc->sz_data - ETH_HDR_LEN, (size_t)m_n_sysvar_rx_prefetch_bytes));
 
 
 	return p_mem_buf_desc;

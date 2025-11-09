@@ -36,8 +36,6 @@
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
-#include "vma/proto/igmp_mgr.h"
-
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/command.h"
@@ -104,13 +102,6 @@ static int free_libvma_resources()
 	//Handle pending received data, this is critical for proper TCP connection termination
 	if (g_p_net_device_table_mgr) {
 		g_p_net_device_table_mgr->global_ring_drain_and_procces();
-	}
-
-	if(g_p_igmp_mgr) {
-		igmp_mgr* g_p_igmp_mgr_tmp = g_p_igmp_mgr;
-		g_p_igmp_mgr = NULL;
-		delete g_p_igmp_mgr_tmp;
-		usleep(50000);
 	}
 
 	if (g_p_event_handler_manager)
@@ -519,8 +510,6 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Num of UC ARPs", safe_mce_sys().neigh_uc_arp_quata, MCE_DEFAULT_NEIGH_UC_ARP_QUATA, SYS_VAR_NEIGH_UC_ARP_QUATA);
 	VLOG_PARAM_NUMBER("UC ARP delay (msec)", safe_mce_sys().neigh_wait_till_send_arp_msec, MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC, SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC);
 	VLOG_PARAM_NUMBER("Num of neigh restart retries", safe_mce_sys().neigh_num_err_retries, MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES, SYS_VAR_NEIGH_NUM_ERR_RETRIES );
-
-	VLOG_PARAM_STRING("IPOIB support", safe_mce_sys().enable_ipoib, MCE_DEFAULT_IPOIB_FLAG, SYS_VAR_IPOIB, safe_mce_sys().enable_ipoib ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("SocketXtreme mode", safe_mce_sys().enable_socketxtreme, MCE_DEFAULT_SOCKETXTREME, SYS_VAR_SOCKETXTREME, safe_mce_sys().enable_socketxtreme ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("BF (Blue Flame)", safe_mce_sys().handle_bf, MCE_DEFAULT_BF_FLAG, SYS_VAR_BF, safe_mce_sys().handle_bf ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("fork() support", safe_mce_sys().handle_fork, MCE_DEFAULT_FORK_SUPPORT, SYS_VAR_FORK, safe_mce_sys().handle_fork ? "Enabled " : "Disabled");
@@ -667,8 +656,6 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_route_table_mgr, route_table_mgr());
 
-	NEW_CTOR(g_p_igmp_mgr, igmp_mgr());
-
 	NEW_CTOR(g_buffer_pool_rx, buffer_pool(safe_mce_sys().rx_num_bufs,
 			RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()),
 			buffer_pool::free_rx_lwip_pbuf_custom,
@@ -760,7 +747,6 @@ int do_global_ctors()
 void reset_globals()
 {
 	g_p_fd_collection = NULL;
-	g_p_igmp_mgr = NULL;
 	g_p_ip_frag_manager = NULL;
 	g_buffer_pool_rx = NULL;
 	g_buffer_pool_tx = NULL;

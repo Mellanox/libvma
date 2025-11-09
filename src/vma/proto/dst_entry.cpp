@@ -154,7 +154,7 @@ bool dst_entry::update_net_dev_val()
 
 		if (m_p_net_dev_val) {
 			// more resource clean and alloc...
-			ret_val = alloc_transport_dep_res();
+			ret_val = alloc_neigh_val();
 		}
 		else {
 			dst_logdbg("Netdev is not offloaded fallback to OS");
@@ -383,76 +383,13 @@ bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
 	return ret_val;
 }
 
-
-bool  dst_entry::conf_l2_hdr_and_snd_wqe_ib()
-{
-	bool ret_val = false;
-	neigh_ib_val *neigh_ib = dynamic_cast<neigh_ib_val*>(m_p_neigh_val);
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!neigh_ib) {
-		dst_logerr("Dynamic cast to neigh_ib failed, can't build proper ibv_send_wqe: header");
-	BULLSEYE_EXCLUDE_BLOCK_END
-	}
-	else {
-		uint32_t qpn = neigh_ib->get_qpn();
-		uint32_t qkey = neigh_ib->get_qkey();
-		struct ibv_ah *ah = (struct ibv_ah *)neigh_ib->get_ah();
-
-		//Maybe we after invalidation so we free the wqe_handler since we are going to build it from scratch
-		if (m_p_send_wqe_handler) {
-			delete m_p_send_wqe_handler;
-			m_p_send_wqe_handler = NULL;
-		}
-		m_p_send_wqe_handler = new wqe_send_ib_handler();
-
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!m_p_send_wqe_handler) {
-			dst_logpanic("%s Failed to allocate send WQE handler", to_str().c_str());
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		((wqe_send_ib_handler *)(m_p_send_wqe_handler))->init_inline_ib_wqe(m_inline_send_wqe, get_sge_lst_4_inline_send(), get_inline_sge_num(), ah, qpn, qkey);
-		((wqe_send_ib_handler*)(m_p_send_wqe_handler))->init_not_inline_ib_wqe(m_not_inline_send_wqe, get_sge_lst_4_not_inline_send(), 1, ah, qpn, qkey);
-		((wqe_send_ib_handler*)(m_p_send_wqe_handler))->init_ib_wqe(m_fragmented_send_wqe, get_sge_lst_4_not_inline_send(), 1, ah, qpn, qkey);
-		m_header.configure_ipoib_headers();
-		init_sge();
-
-		ret_val = true;
-	}
-	return ret_val;
-}
-
 bool dst_entry::conf_hdrs_and_snd_wqe()
 {
-	transport_type_t tranposrt = VMA_TRANSPORT_IB;
-	bool ret_val = true;
-
 	dst_logdbg("dst_entry %s configuring the header template", to_str().c_str());
 
 	configure_ip_header(&m_header);
 
-	if (m_p_net_dev_val) {
-		tranposrt = m_p_net_dev_val->get_transport_type();
-	}
-
-	switch (tranposrt) {
-	case VMA_TRANSPORT_ETH:
-		ret_val = conf_l2_hdr_and_snd_wqe_eth();
-		break;
-	case VMA_TRANSPORT_IB:
-	default:
-		ret_val = conf_l2_hdr_and_snd_wqe_ib();
-		break;
-	}
-	return ret_val;
-}
-
-//Implementation of pure virtual function of neigh_observer
-transport_type_t dst_entry::get_obs_transport_type() const
-{
-	if(m_p_net_dev_val)
-		return(m_p_net_dev_val->get_transport_type());
-	return VMA_TRANSPORT_UNKNOWN;
+	return conf_l2_hdr_and_snd_wqe_eth();
 }
 
 bool dst_entry::offloaded_according_to_rules()
@@ -500,11 +437,7 @@ bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_r
 				is_ofloaded = true;
 				modify_ratelimit(rate_limit);
 				if (resolve_neigh()) {
-					if (get_obs_transport_type() == VMA_TRANSPORT_ETH) {
-						dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
-					} else {
-						dst_logdbg("peer L2 address: %s", m_p_neigh_val->get_l2_address()->to_str().c_str());
-					}
+					dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
 					configure_headers();
 					m_id = m_p_ring->generate_id(m_p_net_dev_val->get_l2_address()->get_address(),
 								     m_p_neigh_val->get_l2_address()->get_address(),
@@ -681,33 +614,15 @@ ssize_t dst_entry::pass_buff_to_neigh(const iovec * p_iov, size_t sz_iov, uint16
 	return ret_val;
 }
 
-bool dst_entry::alloc_transport_dep_res()
+bool dst_entry::alloc_neigh_val()
 {
-	return alloc_neigh_val(get_obs_transport_type());
-}
-
-bool dst_entry::alloc_neigh_val(transport_type_t tranport)
-{
-	bool ret_val = false;
-
 	if (m_p_neigh_val) {
 		delete m_p_neigh_val;
 		m_p_neigh_val = NULL;
 	}
 
-	switch (tranport) {
-		case VMA_TRANSPORT_IB:
-			m_p_neigh_val = new neigh_ib_val;
-			break;
-		case VMA_TRANSPORT_ETH:
-		default:
-			m_p_neigh_val = new neigh_eth_val;
-			break;
-	}
-	if (m_p_neigh_val) {
-		ret_val = true;
-	}
-	return ret_val;
+	m_p_neigh_val = new neigh_val;
+	return (!!m_p_neigh_val);
 }
 
 void dst_entry::return_buffers_pool()
