@@ -27,20 +27,4 @@ struct __attribute__ ((packed)) eth_arp_hdr
 
 void set_eth_arp_hdr(eth_arp_hdr* p_arph, in_addr_t ipsrc_addr, in_addr_t ipdst_addr, const uint8_t* hwsrc_addr, const uint8_t* hwdst_addr);
 
-struct __attribute__ ((packed)) ib_arp_hdr
-{
-	uint16_t 	m_hwtype;
-	uint16_t 	m_proto;
-	uint8_t  	m_hwlen;
-	uint8_t  	m_protolen;
-	uint16_t 	m_opcode;
-	uint8_t 	m_shwaddr[IPOIB_HW_ADDR_LEN];
-	uint32_t 	m_sipaddr;
-	uint8_t 	m_dhwaddr[IPOIB_HW_ADDR_LEN];
-	uint32_t 	m_dipaddr;
-};
-
-void set_ib_arp_hdr(ib_arp_hdr* p_arph, in_addr_t ipsrc_addr, in_addr_t ipdst_addr, const uint8_t* hwsrc_addr, const uint8_t* hwdst_addr);
-
-
 #endif

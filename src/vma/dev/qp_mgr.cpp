@@ -32,8 +32,6 @@
 
 #define FICTIVE_REMOTE_QPN	0x48
 #define FICTIVE_REMOTE_QKEY	0x01234567
-#define FICTIVE_AH_SL		5
-#define FICTIVE_AH_DLID		0x3
 
 #define MAX_UPSTREAM_CQ_MSHV_SIZE 8192
 
@@ -139,8 +137,7 @@ cq_mgr* qp_mgr::init_tx_cq_mgr()
 
 int qp_mgr::configure(struct qp_mgr_desc *desc)
 {
-	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
-			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
+	qp_logdbg("Creating QP on ibv device '%s' [%p] on port %d",
 			m_p_ib_ctx_handler->get_ibname(), m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
 	// Check device capabilities for max QP work requests
@@ -363,7 +360,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 		// Prepare dummy packet: zeroed payload ('0000').
 		// For ETH it replaces the MAC header!! (Nothing is going on the wire, QP in error state)
-		// For IB it replaces the IPoIB header.
 
 		/* need to send at least eth+ip, since libmlx5 will drop just eth header */
 		ethhdr* p_buffer_ethhdr = (ethhdr *)p_mem_buf_desc->p_buffer;
@@ -375,34 +371,9 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer);
 		sge[0].lkey = m_p_ring->m_tx_lkey;
 
-		struct ibv_ah *p_ah = NULL;
-		ibv_ah_attr ah_attr;
-
-		if (m_p_ring->get_transport_type() == VMA_TRANSPORT_IB) {
-			memset(&ah_attr, 0, sizeof(ah_attr));
-			ah_attr.dlid	=	FICTIVE_AH_DLID;
-			ah_attr.sl	=	FICTIVE_AH_SL;
-			ah_attr.src_path_bits	= 0;
-			ah_attr.static_rate	= 0;
-			ah_attr.is_global	= 0;
-			ah_attr.port_num	= m_port_num; // Do we need it?
-
-			p_ah = ibv_create_ah(m_p_ib_ctx_handler->get_ibv_pd(), &ah_attr);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!p_ah && (errno != EIO)) {
-				qp_logpanic("failed creating address handler (errno=%d %m)", errno);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-
-		// Prepare send wr for (does not care if it is UD/IB or RAW/ETH)
-		// UD requires AH+qkey, RAW requires minimal payload instead of MAC header.
-
 		memset(&send_wr, 0, sizeof(send_wr));
 		send_wr.wr_id = (uintptr_t)p_mem_buf_desc;
-		send_wr.wr.ud.ah = p_ah;
-		send_wr.wr.ud.remote_qpn = FICTIVE_REMOTE_QPN;
-		send_wr.wr.ud.remote_qkey = FICTIVE_REMOTE_QKEY;
+		send_wr.wr.ud.ah = nullptr;
 		send_wr.sg_list = sge;
 		send_wr.num_sge = 1;
 		send_wr.next = NULL;
@@ -420,12 +391,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		m_p_ring->m_tx_num_wr_free--;
 
 		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM), true);
-		if (p_ah) {
-			IF_VERBS_FAILURE_EX(ibv_destroy_ah(p_ah), EIO)
-			{
-				qp_logpanic("failed destroying address handle (errno=%d %m)", errno);
-			}ENDIF_VERBS_FAILURE;
-		}
 	}
 }
 
@@ -633,108 +598,6 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		tmp_ibv_qp_attr.cap.max_send_sge);
 
 	return 0;
-}
-
-void qp_mgr_ib::modify_qp_to_ready_state()
-{
-	qp_logdbg("");
-	int ret = 0;
-	int qp_state = priv_ibv_query_qp_state(m_qp);
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (qp_state !=  IBV_QPS_INIT) {
-		if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index, m_underly_qpn)) != 0) {
-			qp_logpanic("failed to modify QP from %d to RTS state (ret = %d)", qp_state, ret);
-		}
-	}
-	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp, m_underly_qpn)) != 0) {
-		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-}
-
-int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
-{
-	qp_logdbg("");
-	int ret = 0;
-
-	qp_init_attr.qp_type = IBV_QPT_UD;
-	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
-
-	if (m_underly_qpn) {
-		ibv_source_qpn_set(qp_init_attr, m_underly_qpn);
-		qp_logdbg("create qp using underly qpn = 0x%X", m_underly_qpn);
-	}
-
-	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!m_qp) {
-		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
-		return -1;
-	}
-
-	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num,
-							  m_pkey_index,
-							  m_underly_qpn)) != 0) {
-		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(
-				VLOG_ERROR, VLOG_DEBUG,
-				"failed to modify QP from ERR to INIT state (ret = %d) check number of available fds (ulimit -n)",
-				ret);
-		return ret;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	enum ibv_qp_attr_mask attr_mask = IBV_QP_CAP;
-	struct ibv_qp_attr tmp_ibv_qp_attr;
-	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
-	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, attr_mask,
-			 &tmp_ibv_qp_init_attr)) {
-			qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
-			return -1;
-	} ENDIF_VERBS_FAILURE;
-
-	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
-	m_max_inline_data = min(tmp_ibv_qp_attr.cap.max_inline_data, tx_max_inline);
-
-	qp_logdbg("requested max inline = %d QP, actual max inline = %d, "
-		"VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, "
-		"max_recv_sge=%d, max_send_sge=%d",
-		tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data,
-		m_max_inline_data, tmp_ibv_qp_attr.cap.max_send_wr,
-		tmp_ibv_qp_attr.cap.max_recv_wr, tmp_ibv_qp_attr.cap.max_recv_sge,
-		tmp_ibv_qp_attr.cap.max_send_sge);
-
-	return 0;
-}
-
-void qp_mgr_ib::update_pkey_index()
-{
-	qp_logdbg("");
-	VALGRIND_MAKE_MEM_DEFINED(&m_pkey, sizeof(m_pkey));
-	if (priv_ibv_find_pkey_index(m_p_ib_ctx_handler->get_ibv_context(), get_port_num(), m_pkey, &m_pkey_index)) {
-		qp_logdbg("IB: Can't find correct pkey_index for pkey '%d'", m_pkey);
-		m_pkey_index = (uint16_t)-1;
-	}
-	else {
-		qp_logdbg("IB: Found correct pkey_index (%d) for pkey '%d'", m_pkey_index, m_pkey);
-	}
-#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
-	/* m_underly_qpn is introduced to detect if current qp_mgr is able to
-	 * use associated qp.
-	 * It is set to non zero value if OFED supports such possibility only but final
-	 * decision can be made just after attempt to create qp. The value of
-	 * m_underly_qpn is reverted to zero if function to qp creation returns
-	 * failure.
-	 * So zero value for this field means no such capability.
-	 * Note: mlx4 does not support this capability. Disable it explicitly because dynamic check
-	 * using ibv_create_qp does not help
-	 */
-	if (!m_p_ib_ctx_handler->is_mlx4()) {
-		m_underly_qpn = m_p_ring->get_qpn();
-	}
-	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibname());
-#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
 }
 
 uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)

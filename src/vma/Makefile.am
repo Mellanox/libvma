@@ -83,7 +83,6 @@ libvma_la_SOURCES := \
 	dev/net_device_entry.cpp \
 	dev/net_device_table_mgr.cpp \
 	dev/wqe_send_handler.cpp \
-	dev/wqe_send_ib_handler.cpp \
 	dev/ring.cpp \
 	dev/ring_bond.cpp \
 	dev/ring_slave.cpp \
@@ -135,8 +134,6 @@ libvma_la_SOURCES := \
 	proto/dst_entry_tcp.cpp \
 	proto/header.cpp \
 	proto/arp.cpp \
-	proto/igmp_mgr.cpp \
-	proto/igmp_handler.cpp \
 	\
 	sock/sockinfo.cpp \
 	sock/sockinfo_udp.cpp \
@@ -188,7 +185,6 @@ libvma_la_SOURCES := \
 	dev/ring_profile.h \
 	dev/ring_allocation_logic.h \
 	dev/wqe_send_handler.h \
-	dev/wqe_send_ib_handler.h \
 	\
 	event/command.h \
 	event/delta_timer.h \
@@ -241,14 +237,11 @@ libvma_la_SOURCES := \
 	proto/dst_entry_udp_mc.h \
 	proto/flow_tuple.h \
 	proto/header.h \
-	proto/igmp_handler.h \
-	proto/igmp_mgr.h \
 	proto/ip_address.h \
 	proto/ip_frag.h \
 	proto/L2_address.h \
 	proto/mem_buf_desc.h \
 	proto/neighbour.h \
-	proto/neighbour_observer.h \
 	proto/neighbour_table_mgr.h \
 	proto/netlink_socket_mgr.h \
 	proto/peer_key.h \

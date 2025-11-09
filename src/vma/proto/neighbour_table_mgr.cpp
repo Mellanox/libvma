@@ -12,8 +12,6 @@
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/netlink_event.h"
 #include "vma/proto/neighbour_table_mgr.h"
-
-#include "vma/proto/neighbour_observer.h"
 #include "vma/dev/net_device_table_mgr.h"
 
 #define MODULE_NAME 		"ntm:"
@@ -68,35 +66,9 @@ bool neigh_table_mgr::register_observer(neigh_key key,
 
 neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observer* new_observer)
 {
-	observer * tmp = const_cast<observer *>(new_observer);
-	const neigh_observer * dst = dynamic_cast<const neigh_observer *>(tmp) ;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (dst == NULL) {
-		//TODO: Need to add handling of this case
-		neigh_mgr_logpanic("dynamic_casr failed, new_observer type is not neigh_observer");
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-
-	transport_type_t transport = dst->get_obs_transport_type();
-
-	if (transport == VMA_TRANSPORT_IB) {
-		if(IS_BROADCAST_N(neigh_key.get_in_addr())){
-			neigh_mgr_logdbg("Creating new neigh_ib_broadcast");
-			return (new neigh_ib_broadcast(neigh_key));
-		}
-		neigh_mgr_logdbg("Creating new neigh_ib");
-		return (new neigh_ib(neigh_key));
-	}
-	else if (transport == VMA_TRANSPORT_ETH) {
-		neigh_mgr_logdbg("Creating new neigh_eth");
-		return (new neigh_eth(neigh_key));
-	}
-	else {
-		neigh_mgr_logdbg("Cannot create new entry, transport type is UNKNOWN");
-		return NULL;
-	}
+	NOT_IN_USE(new_observer);
+	neigh_mgr_logdbg("Creating new neigh_eth");
+	return (new neigh_eth(neigh_key));
 }
 
 void neigh_table_mgr::notify_cb(event *ev)

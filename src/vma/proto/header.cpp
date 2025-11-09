@@ -21,8 +21,7 @@ void header::init()
 header::header() :
 	m_actual_hdr_addr(0),
 	m_transport_header_tx_offset(0),
-	m_is_vlan_enabled(false),
-	m_transport_type(VMA_TRANSPORT_UNKNOWN)
+	m_is_vlan_enabled(false)
 {
 	init();
 }
@@ -36,7 +35,6 @@ header::header(const header &h): tostr()
 	m_aligned_l2_l3_len = h.m_aligned_l2_l3_len;
 	m_transport_header_tx_offset = h.m_transport_header_tx_offset;
 	m_is_vlan_enabled = h.m_is_vlan_enabled;
-	m_transport_type = h.m_transport_type;
 	update_actual_hdr_addr();
 }
 
@@ -83,16 +81,6 @@ void header::configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t
 
 	m_ip_header_len = IPV4_HDR_LEN_WITHOUT_OPTIONS;
 	m_total_hdr_len += m_ip_header_len;
-}
-
-void header::configure_ipoib_headers(uint32_t ipoib_header /*=IPOIB_HEADER*/)
-{
-	ib_hdr_template_t *p_hdr = &m_header.hdr.m_l2_hdr.ib_hdr;
-	m_transport_header_tx_offset = sizeof(p_hdr->m_alignment);
-	m_transport_header_len = sizeof(p_hdr->m_ipoib_hdr);
-	m_total_hdr_len += m_transport_header_len;
-	p_hdr->m_ipoib_hdr.ipoib_header = htonl(ipoib_header);
-	update_actual_hdr_addr();
 }
 
 void header::set_mac_to_eth_header(const L2_address &src, const L2_address &dst, ethhdr &eth_header)

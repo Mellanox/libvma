@@ -21,7 +21,6 @@
 #include "vma/event/event_handler_ibverbs.h"
 #include "vma/event/event_handler_rdma_cm.h"
 #include "vma/dev/ib_ctx_handler.h"
-#include "vma/proto/neighbour_observer.h"
 #include "vma/proto/L2_address.h"
 #include "vma/infra/cache_subject_observer.h"
 
@@ -29,7 +28,6 @@
 class L2_address;
 class ring;
 class ib_ctx_handler;
-class neigh_ib_broadcast;
 
 #define RING_ALLOC_STR_SIZE	256
 class ring_alloc_logic_attr
@@ -223,8 +221,6 @@ public:
 	int                     release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
-	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }
-	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() { return m_ip[0]->local_addr; } // Valid object must have at least one address
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
@@ -249,7 +245,6 @@ protected:
 
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
-	transport_type_t	m_transport_type;
 	lock_mutex_recursive	m_lock;
 	rings_hash_map_t	m_h_ring_map;
 	sys_image_guid_map_t	m_sys_image_guid_map;
@@ -266,9 +261,8 @@ protected:
 private:
 	void 			verify_bonding_mode();
 	bool 			verify_qp_creation(const char* ifname, enum ibv_qp_type qp_type);
-	bool 			verify_bond_ipoib_or_eth_qp_creation();
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
-	bool 			verify_enable_ipoib(const char* ifname);
+	bool 			verify_bond_eth_qp_creation();
+	bool 			verify_eth_qp_creation(const char* interface_name);
 
 	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
 	resource_allocation_key* get_ring_key_redirection(resource_allocation_key *key);
@@ -297,7 +291,6 @@ class net_device_val_eth : public net_device_val
 {
 public:
 	net_device_val_eth(struct net_device_val_desc *desc) : net_device_val(desc), m_vlan(0) {
-		set_transport_type(VMA_TRANSPORT_ETH);
 		if (INVALID != get_state()) {
 			set_slave_array();
 			configure();
@@ -307,7 +300,7 @@ public:
 	std::string		to_str();
 
 protected:
-	virtual ring*		create_ring(resource_allocation_key *key);
+	virtual ring*	create_ring(resource_allocation_key *key);
 	void			parse_prio_egress_map();
 private:
 	void			configure();
@@ -315,35 +308,5 @@ private:
 	void			create_br_address(const char* ifname);
 	uint16_t		m_vlan;
 };
-
-
-class net_device_val_ib : public net_device_val,  public neigh_observer, public cache_observer
-{
-public:
-	net_device_val_ib(struct net_device_val_desc *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
-		set_transport_type(VMA_TRANSPORT_IB);
-		if (INVALID != get_state()) {
-			set_slave_array();
-			configure();
-		}
-	}
-	~net_device_val_ib();
-
-	std::string		to_str();
-	uint16_t		get_pkey() { return m_pkey; }
-	const neigh_ib_broadcast* get_br_neigh() {return m_br_neigh;}
-	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
-
-protected:
-	ring*			create_ring(resource_allocation_key *key);
-
-private:
-	void			configure();
-	L2_address*		create_L2_address(const char* ifname);
-	void			create_br_address(const char* ifname);
-	uint16_t		m_pkey;
-	neigh_ib_broadcast*	m_br_neigh;
-};
-
 
 #endif

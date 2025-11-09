@@ -243,11 +243,6 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname);
 bool check_netvsc_device_exist(const char* ifname);
 bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags);
 bool get_interface_oper_state(IN const char* interface_name, OUT char* slaves_list, IN int sz);
-
-int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
-		const char prop_file[], const char *expected_val,
-		int val_size, char *filename, char* base_ifname);
-
 bool validate_user_has_cap_net_raw_privliges();
 
 size_t default_huge_page_size(void);
@@ -305,52 +300,6 @@ inline void create_multicast_mac_from_ip(unsigned char* mc_mac, in_addr_t ip)
 	mc_mac[3] = (uint8_t)((ip>> 8)&0x7f);
 	mc_mac[4] = (uint8_t)((ip>>16)&0xff);
 	mc_mac[5] = (uint8_t)((ip>>24)&0xff);
-}
-
-static inline void create_mgid_from_ipv4_mc_ip(uint8_t *mgid, uint16_t pkey, uint32_t ip)
-{
-//  +--------+----+----+-----------------+---------+-------------------+
-//  |   8    |  4 |  4 |     16 bits     | 16 bits |      80 bits      |
-//  +--------+----+----+-----------------+---------+-------------------+
-//  |11111111|0001|scop|<IPoIB signature>|< P_Key >|      group ID     |
-//  +--------+----+----+-----------------+---------+-------------------+
-//  |11111111|0001|0010|01000000000011011|         |      group ID     |
-//  +--------+----+----+-----------------+---------+-------------------+
-
-	//Fixed for multicast
-	mgid[0] = 0xff;
-	mgid[1] = 0x12;
-
-	//IPoIB signature: 0x401b for ipv4, 0x601b for ipv6
-	mgid[2] = 0x40;
-	mgid[3] = 0x1b;
-
-	//P_Key
-	mgid[4] = (((unsigned char *)(&pkey))[0]);
-	/* cppcheck-suppress objectIndex */
-	mgid[5] = (((unsigned char *)(&pkey))[1]);
-
-	//group ID - relevant only for ipv4
-	mgid[6] = 0x00;
-	mgid[7] = 0x00;
-	mgid[8] = 0x00;
-	mgid[9] = 0x00;
-	mgid[10] = 0x00;
-	mgid[11] = 0x00;
-	mgid[12] = (uint8_t)((ip)&0x0f);
-	mgid[13] = (uint8_t)((ip>>8)&0xff);
-	mgid[14] = (uint8_t)((ip>>16)&0xff);
-	mgid[15] = (uint8_t)((ip>>24)&0xff);
-
-	vlog_printf(VLOG_DEBUG, "Translated to mgid: %02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X\n",
-			((unsigned char *)(mgid))[0],((unsigned char *)(mgid))[1],
-			((unsigned char *)(mgid))[2],((unsigned char *)(mgid))[3],
-			((unsigned char *)(mgid))[4],((unsigned char *)(mgid))[5],
-			((unsigned char *)(mgid))[6],((unsigned char *)(mgid))[7],
-			((unsigned char *)(mgid))[8],((unsigned char *)(mgid))[9],
-			((unsigned char *)(mgid))[10],((unsigned char *)(mgid))[11],
-			((unsigned char *)(mgid))[12],((unsigned char *)(mgid))[13],
-			((unsigned char *)(mgid))[14],((unsigned char *)(mgid))[15]);
 }
 
 /**

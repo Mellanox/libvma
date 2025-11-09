@@ -100,26 +100,6 @@ typedef enum {
 	BUFFER_BATCHING_LAST,
 } buffer_batching_mode_t;
 
-// See ibv_transport_type for general verbs transport types
-typedef enum {
-	VMA_TRANSPORT_UNKNOWN	= -1,
-	VMA_TRANSPORT_IB	= 0,
-	VMA_TRANSPORT_ETH
-} transport_type_t;
-
-static inline const char* priv_vma_transport_type_str(transport_type_t transport_type)
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	switch (transport_type) {
-	case VMA_TRANSPORT_IB: 			return "IB";
-	case VMA_TRANSPORT_ETH: 		return "ETH";
-	case VMA_TRANSPORT_UNKNOWN:
-	default:				break;
-	}
-	return "UNKNOWN";
-	BULLSEYE_EXCLUDE_BLOCK_END
-}
-
 typedef enum {
 	MSS_FOLLOW_MTU = 0
 } mss_mode_t;
@@ -368,8 +348,6 @@ public:
 	cpu_set_t	internal_thread_affinity;
 	bool		internal_thread_arm_cq_enabled;
 	bool 		handle_bf;
-
-	bool 		enable_ipoib;
 	bool 		enable_socketxtreme;
 	uint32_t	timer_netlink_update_msec;
 
@@ -513,9 +491,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_SPEC					"VMA_SPEC"
 #define SYS_VAR_SPEC_PARAM1				"VMA_SPEC_PARAM1"
 #define SYS_VAR_SPEC_PARAM2				"VMA_SPEC_PARAM2"
-
-#define SYS_VAR_IPOIB					"VMA_IPOIB"
-#define SYS_VAR_SOCKETXTREME				"VMA_SOCKETXTREME"
+#define SYS_VAR_SOCKETXTREME			"VMA_SOCKETXTREME"
 
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
@@ -647,21 +623,20 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MAX_NUM_SGE					(32)
 #define MCE_MIN_RX_NUM_POLLS				(-1)
 #define MCE_MAX_RX_NUM_POLLS				(100000000)
-#define MCE_MIN_RX_PREFETCH_BYTES			(32) /* Just enough for headers (IPoIB+IP+UDP)*/
+#define MCE_MIN_RX_PREFETCH_BYTES			(32)
 #define MCE_MAX_RX_PREFETCH_BYTES			(2044)
 #define MCE_RX_CQ_DRAIN_RATE_DISABLED			(0)
 #define MCE_CQ_DRAIN_INTERVAL_DISABLED			(0)
 #define MCE_CQ_ADAPTIVE_MODERATION_DISABLED		(0)
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
-#define MCE_DEFAULT_IPOIB_FLAG				(1)
 #define MCE_DEFAULT_SOCKETXTREME			(false)
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 #define MCE_DEFAULT_DEFERRED_CLOSE (false)
 
 #define MCE_ALIGNMENT					((unsigned long)63)
-#define RX_BUF_SIZE(mtu)				((mtu) + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB
+#define RX_BUF_SIZE(mtu)				((mtu) + ETH_VLAN_HDR_LEN)
 #define TX_BUF_SIZE(mtu)				((mtu) + 92) // Tx buffers are larger in Ethernet (they include L2 for RAW QP)
 #define NUM_TX_WRE_TO_SIGNAL_MAX			64
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
@@ -670,7 +645,6 @@ extern mce_sys_var & safe_mce_sys();
 #define IFTYPE_PARAM_FILE				"/sys/class/net/%s/type"
 #define IFADDR_MTU_PARAM_FILE				"/sys/class/net/%s/mtu"
 #define UMCAST_PARAM_FILE				"/sys/class/net/%s/umcast"
-#define IPOIB_MODE_PARAM_FILE				"/sys/class/net/%s/mode"
 #define VERBS_DEVICE_PORT_PARAM_FILE			"/sys/class/net/%s/dev_port"
 #define VERBS_DEVICE_ID_PARAM_FILE			"/sys/class/net/%s/dev_id"
 #define BONDING_MODE_PARAM_FILE				"/sys/class/net/%s/bonding/mode"

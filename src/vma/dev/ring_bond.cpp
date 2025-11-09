@@ -856,28 +856,6 @@ void ring_bond_eth::slave_create(int if_index)
 	update_rx_channel_fds();
 }
 
-void ring_bond_ib::slave_create(int if_index)
-{
-	ring_slave *cur_slave;
-	ring_simple *cur_simple;
-
-	cur_slave = cur_simple = new ring_ib(if_index, this);
-	if (cur_slave == NULL) {
-		ring_logpanic("Error creating bond ring: memory allocation error");
-	}
-
-	update_cap(cur_slave);
-	m_bond_rings.push_back(cur_slave);
-
-	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
-		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
-	}
-
-	popup_xmit_rings();
-	popup_recv_rings();
-	update_rx_channel_fds();
-}
-
 void ring_bond_netvsc::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;

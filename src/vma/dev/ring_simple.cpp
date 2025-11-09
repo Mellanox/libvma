@@ -68,12 +68,6 @@ qp_mgr* ring_eth::create_qp_mgr(struct qp_mgr_desc *desc)
 			get_tx_num_wr(), m_partition);
 }
 
-qp_mgr* ring_ib::create_qp_mgr(struct qp_mgr_desc *desc)
-{
-	return new qp_mgr_ib(desc,
-			get_tx_num_wr(), m_partition);
-}
-
 ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	ring_slave(if_index, parent, type),
 	m_p_ib_ctx(NULL),

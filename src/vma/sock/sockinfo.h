@@ -345,24 +345,6 @@ protected:
 		socket_fd_api::notify_epoll_context((uint32_t)events);
 	}
 
-	// This function validates the ipoib's properties
-	// Input params:
-	// 	1. IF name (can be alias)
-	//	2. IF flags
-	//	3. general path to ipoib property file (for example: /sys/class/net/%s/mtu)
-	//	4. the expected value of the property
-	//	5. size of the property
-	// Output params:
-	//	1. property sysfs filename
-	//	2. physical IF name (stripped alias)
-	// Return Value
-	// Type: INT
-	// Val:  -1 Reading from the sys file failed
-	// 	 1 Reading succeeded but the actual prop value != expected
-	//	 0 Reading succeeded and acutal ptop value == expected one
-	//TODO need to copy this function from util
-	//int validate_ipoib_prop(char* ifname, unsigned int ifflags, const char param_file[], const char *val, int size, char *filename, char * base_ifname);
-
 	inline void fetch_peer_info(sockaddr_in *p_peer_addr, sockaddr_in *__from, socklen_t *__fromlen)
 	{
 		*__from = *p_peer_addr;

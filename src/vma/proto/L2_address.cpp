@@ -54,25 +54,3 @@ const std::string ETH_addr::to_str() const
 		sprintf(s, ETH_HW_ADDR_PRINT_FMT, ETH_HW_ADDR_PRINT_ADDR(m_p_raw_address));
 	return (std::string(s));
 }
-
-const std::string IPoIB_addr::to_str() const
-{
-	char s[100] = "";
-	if (m_len > 0)
-		sprintf(s, IPOIB_HW_ADDR_PRINT_FMT, IPOIB_HW_ADDR_PRINT_ADDR(m_p_raw_address));
-	return (std::string(s));
-}
-
-void IPoIB_addr::extract_qpn()
-{
-	unsigned char rem_qpn[4];
-
-	rem_qpn[0] = m_p_raw_address[3];
-	rem_qpn[1] = m_p_raw_address[2];
-	rem_qpn[2] = m_p_raw_address[1];
-	rem_qpn[3] = 0;
-	memcpy(&m_qpn, rem_qpn, 4);
-	L2_logdbg("qpn = %#x", m_qpn);
-}
-
-

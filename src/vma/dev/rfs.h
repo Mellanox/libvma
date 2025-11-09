@@ -30,8 +30,6 @@
 class qp_mgr;
 class pkt_rcvr_sink;
 
-/* ETHERNET
- */
 typedef struct attach_flow_data_eth_ipv4_tcp_udp_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
@@ -60,110 +58,6 @@ typedef struct attach_flow_data_eth_ipv4_tcp_udp_t {
 		p_qp_mgr(qp_mgr),
 		ibv_flow_attr(qp_mgr->get_port_num()) {}
 } attach_flow_data_eth_ipv4_tcp_udp_t;
-
-/* IPOIB (MC)
- */
-typedef struct attach_flow_data_ib_v2_t {
-	struct ibv_flow *                       ibv_flow;
-	qp_mgr*                                 p_qp_mgr;
-	struct ibv_flow_attr_ib_v2 {
-		vma_ibv_flow_attr     attr;
-		ibv_flow_spec_ipv4    ipv4;
-		ibv_flow_spec_tcp_udp tcp_udp;
-
-		ibv_flow_attr_ib_v2(uint8_t port) {
-			memset(this, 0, sizeof(*this));
-			attr.size = sizeof(struct ibv_flow_attr_ib_v2);
-			attr.num_of_specs = 2;
-			attr.type = IBV_FLOW_ATTR_NORMAL;
-			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
-			attr.port = port;
-		}
-	} ibv_flow_attr;
-	attach_flow_data_ib_v2_t(qp_mgr* qp_mgr) :
-		ibv_flow(NULL),
-		p_qp_mgr(qp_mgr),
-		ibv_flow_attr(qp_mgr->get_port_num()) {}
-
-} attach_flow_data_ib_v2_t;
-
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
-typedef struct attach_flow_data_ib_v1_t {
-	struct ibv_flow *                       ibv_flow;
-	qp_mgr*                                 p_qp_mgr;
-	struct ibv_flow_attr_ib_v1 {
-		vma_ibv_flow_attr attr;
-		ibv_flow_spec_ib  ib;
-
-		ibv_flow_attr_ib_v1(uint8_t port) {
-			memset(this, 0, sizeof(*this));
-			attr.size = sizeof(struct ibv_flow_attr_ib_v1);
-			attr.num_of_specs = 1;
-			attr.type = IBV_FLOW_ATTR_NORMAL;
-			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
-			attr.port = port;
-		}
-	} ibv_flow_attr;
-	attach_flow_data_ib_v1_t(qp_mgr* qp_mgr) :
-		ibv_flow(NULL),
-		p_qp_mgr(qp_mgr),
-		ibv_flow_attr(qp_mgr->get_port_num()) {}
-
-} attach_flow_data_ib_v1_t;
-#endif
-
-/* IPOIB (UC)
- */
-typedef struct attach_flow_data_ib_ipv4_tcp_udp_v2_t {
-	struct ibv_flow *                       ibv_flow;
-	qp_mgr*                                 p_qp_mgr;
-	struct ibv_flow_attr_ib_ipv4_tcp_udp_v2 {
-
-		vma_ibv_flow_attr     attr;
-		ibv_flow_spec_ipv4    ipv4;
-		ibv_flow_spec_tcp_udp tcp_udp;
-
-		ibv_flow_attr_ib_ipv4_tcp_udp_v2(uint8_t port) {
-			memset(this, 0, sizeof(*this));
-			attr.size = sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp_v2);
-			attr.num_of_specs = 2;
-			attr.type = IBV_FLOW_ATTR_NORMAL;
-			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
-			attr.port = port;
-		}
-	} ibv_flow_attr;
-	attach_flow_data_ib_ipv4_tcp_udp_v2_t(qp_mgr* qp_mgr) :
-		ibv_flow(NULL),
-		p_qp_mgr(qp_mgr),
-		ibv_flow_attr(qp_mgr->get_port_num()) {}
-} attach_flow_data_ib_ipv4_tcp_udp_v2_t;
-
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
-typedef struct attach_flow_data_ib_ipv4_tcp_udp_v1_t {
-	struct ibv_flow *                       ibv_flow;
-	qp_mgr*                                 p_qp_mgr;
-	struct ibv_flow_attr_ib_ipv4_tcp_udp_v1 {
-
-		vma_ibv_flow_attr     attr;
-		ibv_flow_spec_ib      ib;
-		ibv_flow_spec_ipv4    ipv4;
-		ibv_flow_spec_tcp_udp tcp_udp;
-
-		ibv_flow_attr_ib_ipv4_tcp_udp_v1(uint8_t port) {
-			memset(this, 0, sizeof(*this));
-			attr.size = sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp_v1);
-			attr.num_of_specs = 3;
-			attr.type = IBV_FLOW_ATTR_NORMAL;
-			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
-			attr.port = port;
-		}
-	} ibv_flow_attr;
-	attach_flow_data_ib_ipv4_tcp_udp_v1_t(qp_mgr* qp_mgr) :
-		ibv_flow(NULL),
-		p_qp_mgr(qp_mgr),
-		ibv_flow_attr(qp_mgr->get_port_num()) {}
-} attach_flow_data_ib_ipv4_tcp_udp_v1_t;
-#endif /* DEFINED_IBV_FLOW_SPEC_IB */
 
 typedef struct attach_flow_data_t {
 	vma_ibv_flow*      ibv_flow;
@@ -227,7 +121,7 @@ protected:
 	bool 			destroy_ibv_flow(); // Detach flow from all qps
 	bool 			add_sink(pkt_rcvr_sink* p_sink);
 	bool 			del_sink(pkt_rcvr_sink* p_sink);
-	virtual bool 		prepare_flow_spec() = 0;
+	virtual void 	prepare_flow_spec() = 0;
 
 private:
 	rfs();		// I don't want anyone to use the default constructor

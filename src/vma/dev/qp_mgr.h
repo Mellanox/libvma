@@ -77,7 +77,6 @@ public:
 	uint32_t            get_max_inline_data() const {return m_max_inline_data; }
 	int                 get_port_num() const { return m_port_num; }
 	virtual uint16_t    get_partiton() const { return 0; };
-	virtual uint32_t    get_underly_qpn() const { return 0; };
 	struct ibv_qp*      get_ibv_qp() const { return m_qp; };
 	class cq_mgr*       get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	class cq_mgr*       get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
@@ -165,30 +164,6 @@ protected:
 	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 private:
 	const uint16_t 		m_vlan;
-};
-
-class qp_mgr_ib : public qp_mgr
-{
-public:
-	qp_mgr_ib(struct qp_mgr_desc *desc,
-			const uint32_t tx_num_wr, const uint16_t pkey):
-	qp_mgr(desc, tx_num_wr), m_pkey(pkey), m_underly_qpn(0) {
-		update_pkey_index();
-		if(configure(desc)) throw_vma_exception("failed creating qp"); };
-
-	virtual void 		modify_qp_to_ready_state();
-	virtual uint16_t	get_partiton() const { return m_pkey; };
-	virtual uint32_t	get_underly_qpn() const { return m_underly_qpn; };
-
-protected:
-	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
-
-private:
-	const uint16_t 		m_pkey;
-	uint16_t 		m_pkey_index;
-	uint32_t 		m_underly_qpn;
-
-	void 			update_pkey_index();
 };
 
 #endif

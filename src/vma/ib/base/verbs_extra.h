@@ -34,7 +34,6 @@ inline int _errnocheck(int rc) {
 
 #define IF_RDMACM_FAILURE(__func__)		IF_VERBS_FAILURE(__func__)
 #define ENDIF_RDMACM_FAILURE			ENDIF_VERBS_FAILURE
-#define IPOIB_QKEY 0x0b1b
 
 // See - IB Arch Spec - 11.6.2 COMPLETION RETURN STATUS
 const char* priv_ibv_wc_status_str(enum ibv_wc_status status);
@@ -42,12 +41,8 @@ const char* priv_ibv_wc_status_str(enum ibv_wc_status status);
 // See - IB Arch Spec - 11.6.3 ASYNCHRONOUS EVENTS
 const char* priv_ibv_event_desc_str(enum ibv_event_type type);
 
-// Find pkey_index from the ibv_context + port_num + pkey
-int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16_t pkey, uint16_t *pkey_index);
-
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp);
 int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num);
-int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn);
 int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn = 0);
 
 // Return 'ibv_qp_state' of the ibv_qp
@@ -76,8 +71,6 @@ int priv_ibv_query_burst_supported(struct ibv_qp *qp, uint8_t port_num);
 #ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
 #define vma_ibv_create_qp(pd, attr)                ibv_create_qp_ex((pd)->context, attr)
 typedef struct ibv_qp_init_attr_ex                 vma_ibv_qp_init_attr;
-#define vma_ibv_qp_create_flags(attr)              (attr).create_flags
-#define vma_ibv_qp_source_qpn(attr)                (attr).source_qpn
 #define vma_ibv_qp_init_attr_comp_mask(_pd, _attr) { (_attr).pd = _pd; (_attr).comp_mask |= IBV_QP_INIT_ATTR_PD; }
 #else
 #define vma_ibv_create_qp(pd, attr)                 ibv_create_qp(pd, attr)
@@ -196,27 +189,6 @@ typedef enum {
 
 int vma_rdma_lib_reset();
 
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
-static inline void ibv_flow_spec_ib_set_by_dst_gid(ibv_flow_spec_ib* ib, uint8_t* dst_gid)
-{
-	ib->type = IBV_FLOW_SPEC_IB;
-	ib->size = sizeof(ibv_flow_spec_ib);
-	if (dst_gid)
-	{
-		memcpy(ib->val.dst_gid, dst_gid, 16);
-		memset(ib->mask.dst_gid, FS_MASK_ON_8, 16);
-	}
-}
-
-static inline void ibv_flow_spec_ib_set_by_dst_qpn(ibv_flow_spec_ib* ib, uint32_t dst_qpn)
-{
-	ib->type = IBV_FLOW_SPEC_IB;
-	ib->size = sizeof(ibv_flow_spec_ib);
-	ib->val.qpn = dst_qpn;
-	ib->mask.qpn = FS_MASK_ON_32;
-}
-#endif
-
 static inline void ibv_flow_spec_eth_set(ibv_flow_spec_eth* eth, uint8_t* dst_mac, uint16_t vlan_tag)
 {
 	eth->type = IBV_FLOW_SPEC_ETH;
@@ -259,21 +231,6 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow
 	flow_tag->size = sizeof(vma_ibv_flow_spec_action_tag);
 	flow_tag->tag_id = tag_id;
 #endif //DEFINED_IBV_FLOW_TAG
-}
-
-
-static inline void ibv_source_qpn_set(vma_ibv_qp_init_attr& qp_init_attr, uint32_t source_qpn)
-{
-	NOT_IN_USE(qp_init_attr);
-	NOT_IN_USE(source_qpn);
-
-#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
-	if (source_qpn) {
-		qp_init_attr.comp_mask |= IBV_QP_INIT_ATTR_CREATE_FLAGS;
-		vma_ibv_qp_create_flags(qp_init_attr) |= IBV_QP_CREATE_SOURCE_QPN;
-		vma_ibv_qp_source_qpn(qp_init_attr) = source_qpn;
-	}
-#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
 }
 
 #endif

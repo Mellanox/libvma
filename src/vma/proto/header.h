@@ -25,16 +25,9 @@
 // We align the frame so IP header will be 4 bytes align
 // And we align the L2 headers so IP header on both transport
 // types will be at the same offset from buffer start
-#define NET_IB_IP_ALIGN_SZ		16
 #define NET_ETH_IP_ALIGN_SZ		 6
 #define NET_ETH_VLAN_IP_ALIGN_SZ	 2
 #define NET_ETH_VLAN_PCP_OFFSET	13
-
-struct __attribute__ ((packed)) ib_hdr_template_t  {		// Offeset  Size
-	char		m_alignment[NET_IB_IP_ALIGN_SZ];	//    0      16  = 16
-	ipoibhdr	m_ipoib_hdr;				//   16       4  = 20
-//	iphdr		m_ip_hdr;				//   20      20  = 40
-};
 
 struct __attribute__ ((packed)) eth_hdr_template_t  {		// Offeset  Size
 	char		m_alignment[NET_ETH_IP_ALIGN_SZ];	//    0       6  =  6
@@ -50,7 +43,6 @@ struct __attribute__ ((packed)) vlan_eth_hdr_template_t  {	// Offeset  Size
 };
 
 union l2_hdr_template_t  {
-	ib_hdr_template_t	ib_hdr;
 	eth_hdr_template_t	eth_hdr;
 	vlan_eth_hdr_template_t	vlan_eth_hdr;
 };
@@ -82,7 +74,6 @@ public:
 	void configure_udp_header(uint16_t dest_port, uint16_t src_port);
 	void configure_tcp_ports(uint16_t dest_port, uint16_t src_port);
 	void configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t dest_addr, uint8_t ttl = 64, uint8_t tos = 0, uint16_t packet_id = 0);
-	void configure_ipoib_headers(uint32_t ipoib_header = IPOIB_HEADER);
 	void set_mac_to_eth_header(const L2_address &src, const L2_address &dst, ethhdr &eth_header);
 	void set_ip_ttl(uint8_t ttl);
 	void set_ip_tos(uint8_t tos);
@@ -132,7 +123,6 @@ public:
 	uint16_t m_aligned_l2_l3_len;
 	uint16_t m_transport_header_tx_offset;
 	bool m_is_vlan_enabled;
-	transport_type_t m_transport_type;
 };
 
 #endif /* HEADER_H */

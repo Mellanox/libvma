@@ -124,26 +124,6 @@ protected:
 	virtual void slave_create(int if_index);
 };
 
-class ring_bond_ib : public ring_bond
-{
-public:
-	ring_bond_ib(int if_index):
-		ring_bond(if_index) {
-		net_device_val* p_ndev =
-				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
-		if (p_ndev) {
-			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
-			update_cap();
-			for (size_t i = 0; i < slaves.size(); i++) {
-				slave_create(slaves[i]->if_index);
-			}
-		}
-	}
-
-protected:
-	virtual void slave_create(int if_index);
-};
-
 class ring_bond_netvsc : public ring_bond
 {
 public:
