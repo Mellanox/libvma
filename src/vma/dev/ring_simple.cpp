@@ -34,7 +34,7 @@
 /** inlining functions can only help if they are implemented before their usage **/
 /**/
 
-inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
+inline void ring_simple::send_status_handler(int ret, ibv_send_wr* p_send_wqe)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(ret)) {
@@ -605,7 +605,7 @@ int ring_simple::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_
 }
 
 /* note that this function is inline, so keep it above the functions using it */
-inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+inline int ring_simple::send_buffer(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	//Note: this is debatable logic as it count of WQEs waiting completion but
 	//our SQ is cyclic buffer so in reality only last WQE is still being sent
@@ -627,7 +627,7 @@ inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packe
 	return ret;
 }
 
-bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe)
+bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, ibv_send_wr* p_send_wqe)
 {
 	NOT_IN_USE(id);
 	NOT_IN_USE(p_send_wqe);
@@ -635,7 +635,7 @@ bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* 
 	return m_p_qp_mgr->get_hw_dummy_send_support();
 }
 
-void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+void ring_simple::send_ring_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
 
@@ -657,7 +657,7 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+void ring_simple::send_lwip_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
 

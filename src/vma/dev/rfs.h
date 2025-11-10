@@ -37,16 +37,16 @@ typedef struct attach_flow_data_eth_ipv4_tcp_udp_t {
 	qp_mgr*                                 p_qp_mgr;
 	struct ibv_flow_attr_eth_ipv4_tcp_udp {
 		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_eth         eth;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		ibv_flow_spec_eth             eth;
+		ibv_flow_spec_ipv4            ipv4;
+		ibv_flow_spec_tcp_udp         tcp_udp;
 		vma_ibv_flow_spec_action_tag  flow_tag; // must be the last as struct can be used without it		
 
 		ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp) - sizeof(flow_tag);			
 			attr.num_of_specs = 3;
-			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+			attr.type = IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;
 		}
@@ -67,15 +67,15 @@ typedef struct attach_flow_data_ib_v2_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
 	struct ibv_flow_attr_ib_v2 {
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		vma_ibv_flow_attr     attr;
+		ibv_flow_spec_ipv4    ipv4;
+		ibv_flow_spec_tcp_udp tcp_udp;
 
 		ibv_flow_attr_ib_v2(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_ib_v2);
 			attr.num_of_specs = 2;
-			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+			attr.type = IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;
 		}
@@ -92,14 +92,14 @@ typedef struct attach_flow_data_ib_v1_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
 	struct ibv_flow_attr_ib_v1 {
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_ib          ib;
+		vma_ibv_flow_attr attr;
+		ibv_flow_spec_ib  ib;
 
 		ibv_flow_attr_ib_v1(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_ib_v1);
 			attr.num_of_specs = 1;
-			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+			attr.type = IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;
 		}
@@ -119,15 +119,15 @@ typedef struct attach_flow_data_ib_ipv4_tcp_udp_v2_t {
 	qp_mgr*                                 p_qp_mgr;
 	struct ibv_flow_attr_ib_ipv4_tcp_udp_v2 {
 
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		vma_ibv_flow_attr     attr;
+		ibv_flow_spec_ipv4    ipv4;
+		ibv_flow_spec_tcp_udp tcp_udp;
 
 		ibv_flow_attr_ib_ipv4_tcp_udp_v2(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp_v2);
 			attr.num_of_specs = 2;
-			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+			attr.type = IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;
 		}
@@ -144,16 +144,16 @@ typedef struct attach_flow_data_ib_ipv4_tcp_udp_v1_t {
 	qp_mgr*                                 p_qp_mgr;
 	struct ibv_flow_attr_ib_ipv4_tcp_udp_v1 {
 
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_ib          ib;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		vma_ibv_flow_attr     attr;
+		ibv_flow_spec_ib      ib;
+		ibv_flow_spec_ipv4    ipv4;
+		ibv_flow_spec_tcp_udp tcp_udp;
 
 		ibv_flow_attr_ib_ipv4_tcp_udp_v1(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp_v1);
 			attr.num_of_specs = 3;
-			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+			attr.type = IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;
 		}
@@ -166,9 +166,9 @@ typedef struct attach_flow_data_ib_ipv4_tcp_udp_v1_t {
 #endif /* DEFINED_IBV_FLOW_SPEC_IB */
 
 typedef struct attach_flow_data_t {
-	vma_ibv_flow *                       ibv_flow;
-	qp_mgr*                                 p_qp_mgr;
-	vma_ibv_flow_attr                    ibv_flow_attr;
+	vma_ibv_flow*      ibv_flow;
+	qp_mgr*            p_qp_mgr;
+	vma_ibv_flow_attr  ibv_flow_attr;
 } attach_flow_data_t;
 
 typedef std::vector<attach_flow_data_t*> attach_flow_data_vector_t;

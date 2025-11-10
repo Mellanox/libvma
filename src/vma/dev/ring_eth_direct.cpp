@@ -77,7 +77,7 @@ int ring_eth_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
 		it->second.second++;
 		return 0;
 	}
-	lkey = m_p_ib_ctx->mem_reg(addr, length, VMA_IBV_ACCESS_LOCAL_WRITE);
+	lkey = m_p_ib_ctx->mem_reg(addr, length, IBV_ACCESS_LOCAL_WRITE);
 	if (lkey == (uint32_t)-1) {
 		ring_logdbg("failed registering MR");
 		return -1;

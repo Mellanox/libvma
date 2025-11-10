@@ -60,7 +60,7 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	} else {//Tx
 		int ret = 0;
 		/* coverity[stack_use_local_overflow] */
-		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+		ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 		while ((ret = cq_mgr::poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
 			for (int i = 0; i < ret; i++) {
 				buff = process_cq_element_tx(&wce[i]);
@@ -265,7 +265,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 			for (int i = 0; i < ret; i++) {
 				uint32_t wqe_sz = 0;
 				mlx5_cqe64 *cqe = cqe_arr[i];
-				vma_ibv_wc wce;
+				ibv_wc wce;
 
 				uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
 				if (m_b_is_rx) {
@@ -599,7 +599,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 
 }
 
-inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
+inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, ibv_wc *wc)
 {
 	struct mlx5_err_cqe* ecqe = (struct mlx5_err_cqe *)cqe;
 
@@ -610,7 +610,7 @@ inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
 	case MLX5_CQE_RESP_SEND:
 	case MLX5_CQE_RESP_SEND_IMM:
 	case MLX5_CQE_RESP_SEND_INV:
-		vma_wc_opcode(*wc) = VMA_IBV_WC_RECV;
+		vma_wc_opcode(*wc) = IBV_WC_RECV;
 		wc->byte_len = ntohl(cqe->byte_cnt);
 		wc->status = IBV_WC_SUCCESS;
 		return;
@@ -678,7 +678,7 @@ int cq_mgr_mlx5::poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint6
 	uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
 	int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
 	mem_buf_desc_t* buff = NULL;
-	vma_ibv_wc wce;
+	ibv_wc wce;
 
 	// spoil the global sn if we have packets ready
 	union __attribute__((packed)) {
@@ -801,7 +801,7 @@ bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
 
 int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void* pv_fd_ready_array)
 {
-	vma_ibv_wc wce;
+	ibv_wc wce;
 
 	memset(&wce, 0, sizeof(wce));
 	wce.wr_id = (uintptr_t)m_rx_hot_buffer;
@@ -812,7 +812,7 @@ int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void*
 
 	m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
 	if (m_rx_hot_buffer) {
-		if (vma_wc_opcode(wce) & VMA_IBV_WC_RECV) {
+		if (vma_wc_opcode(wce) & IBV_WC_RECV) {
 			if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
 				!compensate_qp_poll_success(m_rx_hot_buffer)) {
 					process_recv_buffer(m_rx_hot_buffer, pv_fd_ready_array);

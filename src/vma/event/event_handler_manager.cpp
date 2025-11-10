@@ -797,7 +797,7 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 
 	// Ack  rdma_cm event (free)
 	rdma_ack_cm_event(p_tmp_cm_event);
-	evh_logdbg("[%d] Received rdma_cm event %s (%d)", cma_channel->fd, priv_rdma_cm_event_type_str(cma_event.event), cma_event.event);
+	evh_logdbg("[%d] Received rdma_cm event %s (%d)", cma_channel->fd, rdma_event_str(cma_event.event), cma_event.event);
 
 	void* cma_id = (void*)cma_event.id;
 	if (cma_event.listen_id)	// we assume that cma_listen_id != NULL in case of connect request
@@ -819,7 +819,7 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 		}
 	}
 
-	evh_logdbg("[%d] Completed rdma_cm event %s (%d)", cma_channel->fd, priv_rdma_cm_event_type_str(cma_event.event), cma_event.event);
+	evh_logdbg("[%d] Completed rdma_cm event %s (%d)", cma_channel->fd, rdma_event_str(cma_event.event), cma_event.event);
 }
 
 

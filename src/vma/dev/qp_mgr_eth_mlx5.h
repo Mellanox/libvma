@@ -48,10 +48,10 @@ private:
 	virtual void	dm_release_data(mem_buf_desc_t* buff) { m_dm_mgr.release_data(buff); }
 
 	inline void	set_signal_in_next_send_wqe();
-	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
-	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
+	int		send_to_wire(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
+	inline int	fill_wqe(ibv_send_wr* p_send_wqe);
 #ifdef DEFINED_TSO
-	int		fill_wqe_lso(vma_ibv_send_wr* pswr);
+	int		fill_wqe_lso(ibv_send_wr* pswr);
 	inline void	ring_doorbell(uint64_t* wqe, int db_method, int num_wqebb, int num_wqebb_top = 0);
 #else
 	inline void	ring_doorbell(uint64_t* wqe, int num_wqebb, int num_wqebb_top = 0);

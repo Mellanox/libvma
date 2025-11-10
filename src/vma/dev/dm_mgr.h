@@ -30,7 +30,7 @@ public:
 private:
 
 	struct ibv_mr  *m_p_dm_mr;
-	vma_ibv_dm     *m_p_ibv_dm;
+	ibv_dm     *m_p_ibv_dm;
 	ring_stats_t   *m_p_ring_stat;
 	size_t         m_allocation;         // Size of device memory buffer (bytes)
 	size_t         m_used;               // Next available index inside the buffer

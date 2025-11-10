@@ -34,8 +34,8 @@ time_converter_ptp::time_converter_ptp(struct ibv_context* ctx) :
 {
 	for (size_t i=0; i < ARRAY_SIZE(m_clock_values); i++) {
 		memset(&m_clock_values[i], 0, sizeof(m_clock_values[i]));
-		if (vma_ibv_query_clock_info(m_p_ibv_context, &m_clock_values[i])) {
-			ibchtc_logerr("vma_ibv_query_clock_info failure for clock_info, (ibv context %p)", m_p_ibv_context);
+		if (mlx5dv_get_clock_info(m_p_ibv_context, &m_clock_values[i])) {
+			ibchtc_logerr("mlx5dv_get_clock_info failure for clock_info, (ibv context %p)", m_p_ibv_context);
 		}
 	}
 
@@ -52,15 +52,15 @@ void time_converter_ptp::handle_timer_expired(void* user_data) {
 	}
 
 	int ret = 0;
-	ret = vma_ibv_query_clock_info(m_p_ibv_context, &m_clock_values[1 - m_clock_values_id]);
+	ret = mlx5dv_get_clock_info(m_p_ibv_context, &m_clock_values[1 - m_clock_values_id]);
 	if (ret)
-		ibchtc_logerr("vma_ibv_query_clock_info failure for clock_info, (ibv context %p) (return value=%d)", m_p_ibv_context, ret);
+		ibchtc_logerr("mlx5dv_get_clock_info failure for clock_info, (ibv context %p) (return value=%d)", m_p_ibv_context, ret);
 
 	m_clock_values_id = 1 - m_clock_values_id;
 }
 
 void time_converter_ptp::convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) {
-	uint64_t sync_hw_clock = vma_ibv_convert_ts_to_ns(&m_clock_values[m_clock_values_id], hwtime);
+	uint64_t sync_hw_clock = mlx5dv_ts_to_ns(&m_clock_values[m_clock_values_id], hwtime);
 	systime->tv_sec = sync_hw_clock / NSEC_PER_SEC;
 	systime->tv_nsec = sync_hw_clock % NSEC_PER_SEC;
 

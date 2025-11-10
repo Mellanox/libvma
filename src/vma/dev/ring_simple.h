@@ -51,16 +51,16 @@ public:
 	void			mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
 	void			mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	void			mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
-	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	inline int		send_buffer(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		is_up();
 	void			start_active_qp_mgr();
 	void			stop_active_qp_mgr();
 	virtual mem_buf_desc_t*	mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
-	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
-	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	virtual void		send_ring_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	virtual void		send_lwip_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
-	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
+	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 	virtual uint32_t	get_underly_qpn() { return m_p_qp_mgr->get_underly_qpn(); }
@@ -161,7 +161,7 @@ private:
 		bool                     active;
 	} m_socketxtreme;
 
-	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
+	inline void		send_status_handler(int ret, ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		put_tx_buffers(mem_buf_desc_t* buff_list);
 	inline int		put_tx_single_buffer(mem_buf_desc_t* buff);

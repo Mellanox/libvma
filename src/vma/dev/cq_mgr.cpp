@@ -93,13 +93,8 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 
 void cq_mgr::configure(int cq_size)
 {
-	vma_ibv_cq_init_attr attr;
-	memset(&attr, 0, sizeof(attr));
-
-	prep_ibv_cq(attr);
-
-	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
-			cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
+	m_p_ibv_cq = ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
+			cq_size - 1, (void *)this, m_comp_event_channel, 0);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_ibv_cq) {
 		throw_vma_exception("ibv_create_cq failed");
@@ -132,13 +127,6 @@ void cq_mgr::configure(int cq_size)
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
 
-void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr) const
-{
-	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
-		vma_ibv_cq_init_ts_attr(&attr);
-	}
-}
-
 uint32_t cq_mgr::clean_cq()
 {
 	uint32_t ret_total = 0;
@@ -146,7 +134,7 @@ uint32_t cq_mgr::clean_cq()
 	uint64_t cq_poll_sn = 0;
 	mem_buf_desc_t* buff = NULL;
 	/* coverity[stack_use_local_overflow] */
-	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
 		for (int i = 0; i < ret; i++) {
 			if (m_b_is_rx) {
@@ -304,7 +292,7 @@ void cq_mgr::return_extra_buffers()
 	m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 }
 
-int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
+int cq_mgr::poll(ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -320,7 +308,7 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 #ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
-	int ret = vma_ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
+	int ret = ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
 	if (ret <= 0) {
 #ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
@@ -377,7 +365,7 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	return ret;
 }
 
-void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce)
+void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, ibv_wc* p_wce)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	// wce with bad status value
@@ -402,7 +390,7 @@ void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_i
 	cq_logfunc("wce error status '%s' [%d] (wr_id=%p, qp_num=%x)", priv_ibv_wc_status_str(p_wce->status), p_wce->status, p_wce->wr_id, p_wce->qp_num);
 }
 
-mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_ibv_wc* p_wce)
+mem_buf_desc_t* cq_mgr::process_cq_element_tx(ibv_wc* p_wce)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -436,7 +424,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_ibv_wc* p_wce)
 	return p_mem_buf_desc;
 }
 
-mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
+mem_buf_desc_t* cq_mgr::process_cq_element_rx(ibv_wc* p_wce)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -482,7 +470,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 
 	p_mem_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
 
-	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
+	if (likely(vma_wc_opcode(*p_wce) & IBV_WC_RECV)) {
 		// Save recevied total bytes
 		p_mem_buf_desc->sz_data = p_wce->byte_len;
 
@@ -490,12 +478,6 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->rx.is_vma_thr = false;
 		p_mem_buf_desc->rx.context = this;
 		p_mem_buf_desc->rx.socketxtreme_polled = false;
-
-		//this is not a deadcode if timestamping is defined in verbs API
-		// coverity[dead_error_condition]
-		if (vma_wc_flags(*p_wce) & VMA_IBV_WC_WITH_TIMESTAMP) {
-			p_mem_buf_desc->rx.hw_raw_timestamp = vma_wc_timestamp(*p_wce);
-		}
 
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
@@ -616,7 +598,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 	cq_logfuncall("");
 
 	/* coverity[stack_use_local_overflow] */
-	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 
 	int ret;
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
@@ -638,7 +620,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 		for (int i = 0; i < ret; i++) {
 			mem_buf_desc_t *buff = process_cq_element_rx((&wce[i]));
 			if (buff) {
-				if (vma_wc_opcode(wce[i]) & VMA_IBV_WC_RECV) {
+				if (vma_wc_opcode(wce[i]) & IBV_WC_RECV) {
 					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
 							!compensate_qp_poll_success(buff)) {
 						process_recv_buffer(buff, pv_fd_ready_array);
@@ -661,7 +643,7 @@ int cq_mgr::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 	cq_logfuncall("");
 	
 	/* coverity[stack_use_local_overflow] */
-	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	int ret = poll(wce, m_n_sysvar_cq_poll_batch_max, p_cq_poll_sn);
 	if (ret > 0) {
 		m_n_wce_counter += ret;
@@ -772,7 +754,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 		(p_recycle_buffers_last_wr_id)) {
 
 		/* coverity[stack_use_local_overflow] */
-		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+		ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 		int ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn);
 		if (ret <= 0) {
 			m_b_was_drained = true;

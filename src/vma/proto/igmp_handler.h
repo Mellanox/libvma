@@ -59,7 +59,7 @@ private:
 	ring* 			m_p_ring;
 	header			m_header;
 	ibv_sge 		m_sge;
-	vma_ibv_send_wr		m_p_send_igmp_wqe;
+	ibv_send_wr		m_p_send_igmp_wqe;
 	uint8_t			m_igmp_code;
 	ring_user_id_t	m_id;
 

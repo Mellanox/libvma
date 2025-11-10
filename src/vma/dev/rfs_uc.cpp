@@ -43,10 +43,10 @@ bool rfs_uc::prepare_flow_spec()
 	 * the ring will not be deleted as we increased refcnt.
 	 * if one of these assumptions change, we must lock.
 	 */
-	attach_flow_data_t* 		       p_attach_flow_data = NULL;
-	vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
-	vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
-	vma_ibv_flow_spec_action_tag*       p_flow_tag = NULL;
+	attach_flow_data_t* 		  p_attach_flow_data = NULL;
+	ibv_flow_spec_ipv4*           p_ipv4 = NULL;
+	ibv_flow_spec_tcp_udp*        p_tcp_udp = NULL;
+	vma_ibv_flow_spec_action_tag* p_flow_tag = NULL;
 
 	attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
 
