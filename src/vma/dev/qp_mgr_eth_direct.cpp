@@ -9,8 +9,6 @@
 #include "cq_mgr_mlx5.h"
 #include "ring_simple.h"
 
-#if defined(DEFINED_DIRECT_VERBS)
-
 #undef  MODULE_NAME
 #define MODULE_NAME 	"qp_mgr_direct"
 #define qp_logpanic 	__log_info_panic
@@ -117,5 +115,3 @@ qp_mgr_eth_direct::~qp_mgr_eth_direct()
 	delete m_p_cq_mgr_rx;
 	m_p_cq_mgr_rx = NULL;
 }
-
-#endif /* DEFINED_DIRECT_VERBS */

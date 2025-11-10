@@ -11,7 +11,6 @@
 #include "cq_mgr.h"
 #include "qp_mgr_eth_mlx5.h"
 
-#if defined(DEFINED_DIRECT_VERBS)
 class qp_mgr_eth_mlx5;
 
 /* Get CQE opcode. */
@@ -66,5 +65,4 @@ private:
 	};
 };
 
-#endif /* DEFINED_DIRECT_VERBS */
 #endif //CQ_MGR_MLX5_H

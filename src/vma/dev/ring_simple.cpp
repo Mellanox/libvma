@@ -10,9 +10,7 @@
 #include "vma/util/valgrind.h"
 #include "vma/util/sg_array.h"
 #include "vma/sock/fd_collection.h"
-#if defined(DEFINED_DIRECT_VERBS)
 #include "vma/dev/qp_mgr_eth_mlx5.h"
-#endif
 
 #undef  MODULE_NAME
 #define MODULE_NAME "ring_simple"
@@ -61,12 +59,11 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 
 qp_mgr* ring_eth::create_qp_mgr(struct qp_mgr_desc *desc)
 {
-#if defined(DEFINED_DIRECT_VERBS)
 	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)desc->slave->p_ib_ctx)->get_ibname())) {
 		return new qp_mgr_eth_mlx5(desc,
 				get_tx_num_wr(), m_partition);
 	}
-#endif
+
 	return new qp_mgr_eth(desc,
 			get_tx_num_wr(), m_partition);
 }

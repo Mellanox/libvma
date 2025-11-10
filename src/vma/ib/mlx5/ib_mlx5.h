@@ -7,22 +7,10 @@
 #ifndef SRC_VMA_IB_MLX5_H_
 #define SRC_VMA_IB_MLX5_H_
 
-#if defined(DEFINED_DIRECT_VERBS)
-
 #include <infiniband/verbs.h>
-
-#if (DEFINED_DIRECT_VERBS == 2)
-#include <infiniband/mlx5_hw.h>
-#include "vma/ib/mlx5/ib_mlx5_hw.h"
-#elif (DEFINED_DIRECT_VERBS == 3)
 extern "C" {
 #include <infiniband/mlx5dv.h>
 }
-#include "vma/ib/mlx5/ib_mlx5_dv.h"
-#else
-#error "Unsupported Direct VERBS parameter"
-#endif
-
 #include <utils/asm.h>
 #include <vma/util/vtypes.h>
 
@@ -33,12 +21,6 @@ extern "C" {
  * rdma-core(Upstream OFED) structures/macro/enum etc are taken as basis
  * inside this layer
  */
-
-
-/**
- * Get internal verbs information.
- */
-int vma_ib_mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t type);
 
 enum {
    VMA_IB_MLX5_QP_FLAGS_USE_UNDERLAY = 0x01
@@ -97,7 +79,5 @@ int vma_ib_mlx5_post_recv(vma_ib_mlx5_qp_t *mlx5_qp, struct ibv_recv_wr *wr, str
 int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq);
 int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited);
 void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq, int count);
-
-#endif /* DEFINED_DIRECT_VERBS */
 
 #endif /* SRC_VMA_IB_MLX5_H_ */

@@ -27,12 +27,8 @@ ring_eth_direct::ring_eth_direct(int if_index,
 
 qp_mgr* ring_eth_direct::create_qp_mgr(struct qp_mgr_desc *desc)
 {
-#if defined(DEFINED_DIRECT_VERBS)
 	return new qp_mgr_eth_direct(desc,
 			get_tx_num_wr(), m_partition);
-#endif
-	NOT_IN_USE(desc);
-	return NULL;
 }
 
 void ring_eth_direct::init_tx_buffers(uint32_t count)

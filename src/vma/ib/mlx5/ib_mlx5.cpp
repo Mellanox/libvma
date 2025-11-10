@@ -8,12 +8,9 @@
 #include "config.h"
 #endif
 #include "util/valgrind.h"
-#if defined(DEFINED_DIRECT_VERBS)
-
 #include "vma/util/valgrind.h"
 #include "vma/util/utils.h"
 #include "vma/ib/mlx5/ib_mlx5.h"
-
 
 int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t flags)
 {
@@ -29,7 +26,7 @@ int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t fl
 
 	obj.qp.in = qp;
 	obj.qp.out = &dqp;
-	ret = vma_ib_mlx5dv_init_obj(&obj, MLX5DV_OBJ_QP);
+	ret = mlx5dv_init_obj(&obj, MLX5DV_OBJ_QP);
 	if (ret != 0) {
 		goto out;
 	}
@@ -90,7 +87,7 @@ int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq)
 
 	obj.cq.in = cq;
 	obj.cq.out = &dcq;
-	ret = vma_ib_mlx5dv_init_obj(&obj, MLX5DV_OBJ_CQ);
+	ret = mlx5dv_init_obj(&obj, MLX5DV_OBJ_CQ);
 	if (ret != 0) {
 		return ret;
 	}
@@ -186,4 +183,37 @@ out:
 	return err;
 }
 
-#endif /* DEFINED_DIRECT_VERBS */
+int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited)
+{
+	uint64_t doorbell;
+	uint32_t sn;
+	uint32_t ci;
+	uint32_t cmd;
+
+	sn  = mlx5_cq->cq_sn & 3;
+	ci  = mlx5_cq->cq_ci & 0xffffff;
+	cmd = solicited ? MLX5_CQ_DB_REQ_NOT_SOL : MLX5_CQ_DB_REQ_NOT;
+
+	doorbell = sn << 28 | cmd | ci;
+	doorbell <<= 32;
+	doorbell |= mlx5_cq->cq_num;
+
+	mlx5_cq->dbrec[VMA_IB_MLX5_CQ_ARM_DB] = htonl(sn << 28 | cmd | ci);
+
+	/*
+	 * Make sure that the doorbell record in host memory is
+	 * written before ringing the doorbell via PCI WC MMIO.
+	 */
+	wmb();
+
+	*(uint64_t *)((uint8_t *)mlx5_cq->uar + MLX5_CQ_DOORBELL) = htonll(doorbell);
+
+	wc_wmb();
+
+	return 0;
+}
+
+void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq, int count)
+{
+	mlx5_cq->cq_sn += count;
+}

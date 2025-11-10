@@ -13,7 +13,6 @@
 class mem_buf_desc_t;
 class ib_ctx_handler;
 
-#if defined(DEFINED_DIRECT_VERBS)
 #if defined(DEFINED_IBV_DM)
 
 #define DM_COMPLETION_THRESHOLD 8192
@@ -51,5 +50,4 @@ public:
 };
 
 #endif /* DEFINED_IBV_DM */
-#endif /* DEFINED_DIRECT_VERBS */
 #endif /* DM_MGR_H */

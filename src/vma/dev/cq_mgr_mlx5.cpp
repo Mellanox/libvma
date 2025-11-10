@@ -6,8 +6,6 @@
 
 #include "cq_mgr_mlx5.h"
 
-#if defined(DEFINED_DIRECT_VERBS)
-
 #include <vma/util/valgrind.h>
 #include "cq_mgr.inl"
 #include "cq_mgr_mlx5.inl"
@@ -825,5 +823,3 @@ int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void*
 
 	return 1;
 }
-
-#endif /* DEFINED_DIRECT_VERBS */

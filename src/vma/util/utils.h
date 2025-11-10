@@ -232,13 +232,12 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
 
 /* Print warning while RoCE Lag is enabled */
-void print_roce_lag_warnings(char* interface, char* disable_path = NULL, const char* port1 = NULL, const char* port2 = NULL);
+void print_roce_lag_warnings(char* interface, const char* port1 = NULL, const char* port2 = NULL);
 
 bool check_bond_device_exist(const char* ifname);
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);
-bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* slave_name);
 bool check_device_exist(const char* ifname, const char *path);
 bool check_device_name_ib_name(const char* ifname, const char* ibname);
 bool check_netvsc_device_exist(const char* ifname);
@@ -248,10 +247,6 @@ bool get_interface_oper_state(IN const char* interface_name, OUT char* slaves_li
 int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
 		int val_size, char *filename, char* base_ifname);
-
-#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
-int validate_raw_qp_privliges();
-#endif /* DEFINED_VERBS_VERSION */
 
 bool validate_user_has_cap_net_raw_privliges();
 

@@ -100,8 +100,6 @@ libvma_la_SOURCES := \
 	\
 	ib/base/verbs_extra.cpp \
 	ib/mlx5/ib_mlx5.cpp \
-	ib/mlx5/ib_mlx5_hw.cpp \
-	ib/mlx5/ib_mlx5_dv.cpp \
 	\
 	iomux/epfd_info.cpp \
 	iomux/epoll_wait_call.cpp \
@@ -205,8 +203,6 @@ libvma_la_SOURCES := \
 	\
 	ib/base/verbs_extra.h \
 	ib/mlx5/ib_mlx5.h \
-	ib/mlx5/ib_mlx5_hw.h \
-	ib/mlx5/ib_mlx5_dv.h \
 	\
 	infra/sender.h \
 	infra/sender_info_dst.h \

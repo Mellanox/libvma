@@ -12,9 +12,6 @@
 #include "vma/util/sg_array.h"
 #include "vma/dev/dm_mgr.h"
 
-#if defined(DEFINED_DIRECT_VERBS)
-
-
 struct mlx5_wqe64 {
 	union {
 		struct mlx5_wqe_ctrl_seg ctrl;
@@ -75,5 +72,5 @@ private:
 	dm_mgr              m_dm_mgr;
 	bool                m_dm_enabled;
 };
-#endif //defined(DEFINED_DIRECT_VERBS)
+
 #endif //QP_MGR_ETH_MLX5_H
