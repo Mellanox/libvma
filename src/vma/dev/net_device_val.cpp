@@ -1533,11 +1533,8 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 		 */
 		sys_image_guid_map_t::iterator guid_iter;
 		for (guid_iter = m_sys_image_guid_map.begin(); guid_iter != m_sys_image_guid_map.end(); guid_iter++) {
-			char bond_roce_lag_path[256] = {0};
-			if (guid_iter->second.size() > 1 &&
-					check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), guid_iter->second.front().c_str()) &&
-					check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), guid_iter->second.back().c_str())) {
-				print_roce_lag_warnings(get_ifname_link(), bond_roce_lag_path, guid_iter->second.front().c_str(), guid_iter->second.back().c_str());
+			if (guid_iter->second.size() > 1) {
+				print_roce_lag_warnings(get_ifname_link(), guid_iter->second.front().c_str(), guid_iter->second.back().c_str());
 			}
 		}
 #endif /* DEFINED_ROCE_LAG */
@@ -1615,7 +1612,6 @@ bool net_device_val::verify_enable_ipoib(const char* interface_name)
 bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_type)
 {
 	bool success = false;
-	char bond_roce_lag_path[256] = {0};
 	struct ibv_cq* cq = NULL;
 	struct ibv_comp_channel *channel = NULL;
 	struct ibv_qp* qp = NULL;
@@ -1643,12 +1639,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	if (!p_ib_ctx) {
 		nd_logdbg("Cant find ib_ctx for interface %s", base_ifname);
 		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND) {
-			if (check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), ifname)) {
-				print_roce_lag_warnings(get_ifname_link(), bond_roce_lag_path);
-			} else if ((p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link()))
-					&& strstr(p_ib_ctx->get_ibname(), "bond")) {
-				print_roce_lag_warnings(get_ifname_link());
-			}
+			print_roce_lag_warnings(get_ifname_link());
 		}
 		goto release_resources;
 	} else if (port_num > p_ib_ctx->get_ibv_device_attr()->phys_port_cnt) {
@@ -1711,19 +1702,6 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 		nd_logdbg("QP creation failed on interface %s (errno=%d %s), Traffic will not be offloaded", ifname, errno, strerror(errno));
 qp_failure:
 		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
-#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
-		if (validate_raw_qp_privliges() == 0) {
-			// MLNX_OFED raw_qp_privliges file exist with bad value
-			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet/InfiniBand interfaces\n");
-			vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
-			vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
-			vlog_printf(VLOG_WARNING,"* 2. Restart openibd or rdma service depending on your system configuration\n");
-			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
-			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
-		} else
-#endif /* DEFINED_VERBS_VERSION */
 		if (validate_user_has_cap_net_raw_privliges() == 0 || err == EPERM) {
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);

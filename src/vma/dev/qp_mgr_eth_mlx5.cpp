@@ -5,8 +5,6 @@
  */
 #include "qp_mgr_eth_mlx5.h"
 
-#if defined(DEFINED_DIRECT_VERBS)
-
 #include <sys/mman.h>
 #include "cq_mgr_mlx5.h"
 #include "vma/util/utils.h"
@@ -66,7 +64,7 @@ static bool is_bf(struct ibv_context *ib_ctx)
 
 	env = getenv("MLX5_SHUT_UP_BF");
 	if (!env || !strcmp(env, "0")) {
-#if defined(DEFINED_DIRECT_VERBS) && (DEFINED_DIRECT_VERBS == 3) && defined(MLX5DV_UAR_ALLOC_TYPE_BF)
+#if defined(MLX5DV_UAR_ALLOC_TYPE_BF)
 		struct mlx5dv_devx_uar *uar = mlx5dv_devx_alloc_uar(ib_ctx, MLX5DV_UAR_ALLOC_TYPE_BF);
 		if (uar) {
 			mlx5dv_devx_free_uar(uar);
@@ -88,7 +86,7 @@ static bool is_bf(struct ibv_context *ib_ctx)
 			(void)munmap(addr, page_size);
 			return true;
 		}
-#endif /* DEFINED_DIRECT_VERBS */
+#endif /* MLX5DV_UAR_ALLOC_TYPE_BF */
 	}
 	return false;
 }
@@ -880,5 +878,3 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM), true);
 	}
 }
-
-#endif /* DEFINED_DIRECT_VERBS */

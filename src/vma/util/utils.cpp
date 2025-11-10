@@ -145,7 +145,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
-void print_roce_lag_warnings(char* interface, char* disable_path /* = NULL */, const char* port1 /* = NULL */, const char* port2 /* = NULL */)
+void print_roce_lag_warnings(char* interface, const char* port1 /* = NULL */, const char* port2 /* = NULL */)
 {
 	vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
 
@@ -158,11 +158,6 @@ void print_roce_lag_warnings(char* interface, char* disable_path /* = NULL */, c
 	}
 
 	vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more info\n");
-
-	if (disable_path) {
-		vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n");
-		vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", disable_path);
-	}
 	vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
 }
 
@@ -866,26 +861,6 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
-bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* slave_name)
-{
-#if defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3)
-	NOT_IN_USE(bond_roce_lag_path);
-	NOT_IN_USE(sz);
-	NOT_IN_USE(slave_name);
-	return true;
-#else
-	char sys_res[1024] = {0};
-	snprintf(bond_roce_lag_path, sz, BONDING_ROCE_LAG_FILE, slave_name);
-	if (priv_read_file(bond_roce_lag_path, sys_res, 1024, VLOG_FUNC) > 0) {
-		if (strtol(sys_res, NULL,10) > 0 && errno != ERANGE) {
-			return true;
-		}
-	}
-#endif
-
-	return false;
-}
-
 bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags)
 {
 	char netvsc_path[256];
@@ -1005,7 +980,6 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 		}
 	}
 
-#if (defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
 	/* Case #2:
 	 * When device is a slave interface
 	 * For example: ens4f1(bondX) -> mlx5_bond_X
@@ -1034,7 +1008,6 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 			}
 		}
 	}
-#endif
 
 	return false;
 }
@@ -1088,22 +1061,6 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		return 0;
 	}
 }
-
-#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
-//NOTE RAW_QP_PRIVLIGES_PARAM_FILE does not exist on upstream drivers
-int validate_raw_qp_privliges()
-{
-	// RAW_QP_PRIVLIGES_PARAM_FILE: "/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
-	char raw_qp_privliges_value = 0;
-	if (priv_read_file((const char*)RAW_QP_PRIVLIGES_PARAM_FILE, &raw_qp_privliges_value, 1, VLOG_DEBUG) <= 0) {
-		return -1;
-	}
-	if (raw_qp_privliges_value != '1') {
-		return 0;
-	}
-	return 1;
-}
-#endif /* DEFINED_VERBS_VERSION */
 
 bool validate_user_has_cap_net_raw_privliges()
 {
