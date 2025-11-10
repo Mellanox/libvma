@@ -95,11 +95,11 @@ int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16
 
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp)
 {
-	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr qp_attr;
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_ERR;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE_EX(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE), EIO) {
+	IF_VERBS_FAILURE_EX(ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE), EIO) {
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -109,11 +109,11 @@ int priv_ibv_modify_qp_to_err(struct ibv_qp *qp)
 
 int priv_ibv_modify_qp_to_reset(struct ibv_qp *qp)
 {
-	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr qp_attr;
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_RESET;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE)) {
+	IF_VERBS_FAILURE(ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE)) {
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -122,7 +122,7 @@ int priv_ibv_modify_qp_to_reset(struct ibv_qp *qp)
 
 int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num)
 {
-	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr qp_attr;
 
 	if (qp->qp_type != IBV_QPT_RAW_PACKET)
 		return -1;
@@ -137,7 +137,7 @@ int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num)
 	qp_attr.qp_state = IBV_QPS_INIT;
 	qp_attr.port_num = port_num;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, (ibv_qp_attr_mask)(IBV_QP_STATE | IBV_QP_PORT))) {
+	IF_VERBS_FAILURE(ibv_modify_qp(qp, &qp_attr, (ibv_qp_attr_mask)(IBV_QP_STATE | IBV_QP_PORT))) {
 		return -3;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -147,7 +147,7 @@ int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num)
 
 int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn)
 {
-	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr qp_attr;
 	ibv_qp_attr_mask qp_attr_mask = (ibv_qp_attr_mask)IBV_QP_STATE;
 
 	if (qp->qp_type != IBV_QPT_UD)
@@ -169,7 +169,7 @@ int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, 
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
+	IF_VERBS_FAILURE(ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
 		return -3;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -179,7 +179,7 @@ int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, 
 
 int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn)
 {
-	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr qp_attr;
 	ibv_qp_attr_mask qp_attr_mask = (ibv_qp_attr_mask)IBV_QP_STATE;
 
 	if (priv_ibv_query_qp_state(qp) !=  IBV_QPS_INIT) {
@@ -189,7 +189,7 @@ int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn)
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_RTR;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
+	IF_VERBS_FAILURE(ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -202,7 +202,7 @@ int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn)
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
+	IF_VERBS_FAILURE(ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
 		return -3;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -254,10 +254,10 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 
 	// Create
 	struct {
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_eth         eth;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		ibv_flow_attr                 attr;
+		ibv_flow_spec_eth             eth;
+		ibv_flow_spec_ipv4            ipv4;
+		ibv_flow_spec_tcp_udp         tcp_udp;
 		vma_ibv_flow_spec_action_tag  flow_tag;
 	} ft_attr;
 
@@ -265,7 +265,7 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 	memset(&ft_attr, 0, sizeof(ft_attr));
 	ft_attr.attr.size = sizeof(ft_attr);
 	ft_attr.attr.num_of_specs = 4;
-	ft_attr.attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+	ft_attr.attr.type = IBV_FLOW_ATTR_NORMAL;
 	ft_attr.attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 	ft_attr.attr.port = port_num;
 
@@ -282,10 +282,10 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 	ibv_flow_spec_flow_tag_set(&ft_attr.flow_tag, FLOW_TAG_MASK-1); // enable flow tag
 
 	// Create flow
-	vma_ibv_flow *ibv_flow = vma_ibv_create_flow(qp, &ft_attr.attr);
+	ibv_flow *ibv_flow = ibv_create_flow(qp, &ft_attr.attr);
 	if (ibv_flow) {
 		res = 0;
-		vma_ibv_destroy_flow(ibv_flow);
+		ibv_destroy_flow(ibv_flow);
 	}
 #endif // DEFINED_IBV_FLOW_TAG
 
@@ -297,16 +297,16 @@ int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num)
 	int res = -1;
 
 	struct {
-		vma_ibv_flow_attr             attr;
-		vma_ibv_flow_spec_ipv4        ipv4;
-		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		ibv_flow_attr         attr;
+		ibv_flow_spec_ipv4    ipv4;
+		ibv_flow_spec_tcp_udp tcp_udp;
 	} cf_attr;
 
 	// Initialize
 	memset(&cf_attr, 0, sizeof(cf_attr));
 	cf_attr.attr.size = sizeof(cf_attr);
 	cf_attr.attr.num_of_specs = 2;
-	cf_attr.attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+	cf_attr.attr.type = IBV_FLOW_ATTR_NORMAL;
 	cf_attr.attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 	cf_attr.attr.port = port_num;
 
@@ -314,10 +314,10 @@ int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num)
 	ibv_flow_spec_tcp_udp_set(&cf_attr.tcp_udp, true, 0, 0); // L4 filter
 
 	// Create flow
-	vma_ibv_flow *ibv_flow = vma_ibv_create_flow(qp, &cf_attr.attr);
+	ibv_flow *ibv_flow = ibv_create_flow(qp, &cf_attr.attr);
 	if (ibv_flow) {
 		res = 0;
-		vma_ibv_destroy_flow(ibv_flow);
+		ibv_destroy_flow(ibv_flow);
 	}
 
 	return res;
@@ -349,7 +349,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 
 	if (rate_limit.rate && (rl_changes & RL_RATE)) {
 		qp_attr.rate_limit = rate_limit.rate;
-		attr_mask |= VMA_IBV_QP_RATE_LIMIT;
+		attr_mask |= IBV_QP_RATE_LIMIT;
 	}
 #ifdef DEFINED_IBV_QP_SUPPORT_BURST
 	if (rate_limit.max_burst_sz && rate_limit.typical_pkt_sz && (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE))) {
@@ -381,15 +381,15 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t count)
 {
 #ifdef DEFINED_IBV_CQ_ATTR_MODERATE
-	vma_ibv_cq_attr cq_attr;
+	ibv_modify_cq_attr cq_attr;
 	memset(&cq_attr, 0, sizeof(cq_attr));
-	vma_cq_attr_mask(cq_attr) = VMA_IBV_CQ_MODERATION;
+	vma_cq_attr_mask(cq_attr) = IBV_CQ_ATTR_MODERATE;
 	vma_cq_attr_moderation(cq_attr).cq_count = count;
 	vma_cq_attr_moderation(cq_attr).cq_period = period;
 
 	vlog_printf(VLOG_FUNC, "modify cq moderation, period=%d, count=%d\n", period, count);
 
-	IF_VERBS_FAILURE_EX(vma_ibv_modify_cq(cq, &cq_attr, VMA_IBV_CQ_MODERATION), EIO) {
+	IF_VERBS_FAILURE_EX(ibv_modify_cq(cq, &cq_attr), EIO) {
 		vlog_printf(VLOG_DEBUG, "Failure modifying cq moderation (errno=%d %m)\n", errno);
 	} ENDIF_VERBS_FAILURE;
 #else

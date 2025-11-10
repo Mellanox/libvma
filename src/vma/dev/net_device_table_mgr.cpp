@@ -82,7 +82,7 @@ net_device_table_mgr::net_device_table_mgr() :
 	if (m_net_device_map_index.empty()) {
 		int num_devices = 0;
 		struct ibv_device **dev_list = NULL;
-		dev_list = vma_ibv_get_device_list(&num_devices);
+		dev_list = ibv_get_device_list(&num_devices);
 		if (dev_list && num_devices == 0) {
 			ibv_free_device_list(dev_list);
 			ndtm_logdbg("net_device_map is empty %d", num_devices);

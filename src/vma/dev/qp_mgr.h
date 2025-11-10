@@ -73,7 +73,7 @@ public:
 
 	virtual void        post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc); // Post for receive single mem_buf_desc
 	void                post_recv_buffers(descq_t* p_buffers, size_t count); // Post for receive a list of mem_buf_desc
-	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	int                 send(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 
 #ifdef DEFINED_TSO
 	inline uint32_t     get_max_inline_data() const {
@@ -160,7 +160,7 @@ protected:
 
 	cq_mgr* handle_cq_initialization(uint32_t *num_wr, struct ibv_comp_channel* comp_event_channel, bool is_rx);
 
-	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
+	virtual int     send_to_wire(ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	virtual bool    is_completion_need() { return !m_n_unsignaled_count; };
 	virtual bool    is_rq_empty() const { return false; }
 };

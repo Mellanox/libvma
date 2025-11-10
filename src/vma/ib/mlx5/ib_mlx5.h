@@ -32,7 +32,7 @@ enum {
 };
 
 /* Queue pair */
-typedef struct vma_ib_mlx5_qp {
+struct vma_ib_mlx5_qp_t {
 	struct ibv_qp *qp;
 	uint32_t qpn;
 	uint32_t flags;
@@ -57,10 +57,10 @@ typedef struct vma_ib_mlx5_qp {
 		uint32_t size;
 		uint32_t offset;
 	} bf;
-} vma_ib_mlx5_qp_t;
+};
 
 /* Completion queue */
-typedef struct vma_ib_mlx5_cq {
+struct vma_ib_mlx5_cq_t {
 	struct ibv_cq      *cq;
 	void               *cq_buf;
 	unsigned           cq_num;
@@ -71,7 +71,7 @@ typedef struct vma_ib_mlx5_cq {
 	unsigned           cqe_size_log;
 	volatile uint32_t  *dbrec;
 	void               *uar;
-} vma_ib_mlx5_cq_t;
+};
 
 int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t flags = 0);
 int vma_ib_mlx5_post_recv(vma_ib_mlx5_qp_t *mlx5_qp, struct ibv_recv_wr *wr, struct ibv_recv_wr **bad_wr);

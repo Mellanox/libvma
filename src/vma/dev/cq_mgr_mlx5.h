@@ -56,7 +56,7 @@ private:
 
 	inline struct mlx5_cqe64*   get_cqe64(struct mlx5_cqe64 **cqe_err = NULL);
 	inline void                 cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
-	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
+	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, ibv_wc *wc);
 	inline struct mlx5_cqe64*   check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
 	inline void                 update_global_sn(uint64_t& cq_poll_sn, uint32_t rettotal);
 

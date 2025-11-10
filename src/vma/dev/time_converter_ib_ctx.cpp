@@ -73,15 +73,15 @@ uint64_t time_converter_ib_ctx::get_hca_core_clock(){
 #ifdef DEFINED_IBV_CQ_TIMESTAMP
 bool time_converter_ib_ctx::sync_clocks(struct timespec* st, uint64_t* hw_clock){
 	struct timespec st1, st2, diff, st_min = TIMESPEC_INITIALIZER;
-	vma_ts_values queried_values;
+	ibv_values_ex queried_values;
 	int64_t interval, best_interval = 0;
 	uint64_t hw_clock_min = 0;
 
 	memset(&queried_values, 0, sizeof(queried_values));
-	queried_values.comp_mask = VMA_IBV_VALUES_MASK_RAW_CLOCK;
+	queried_values.comp_mask = IBV_VALUES_MASK_RAW_CLOCK;
 	for (int i = 0 ; i < 10 ; i++) {
 		clock_gettime(CLOCK_REALTIME, &st1);
-		if (vma_ibv_query_values(m_p_ibv_context, &queried_values) || !vma_get_ts_val(queried_values)) {
+		if (ibv_query_rt_values_ex(m_p_ibv_context, &queried_values) || !vma_get_ts_val(queried_values)) {
 			return false;
 		}
 

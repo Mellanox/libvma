@@ -99,11 +99,11 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 
 	ibchc_logdbg("Checking for offload capable IB devices...");
 
-	dev_list = vma_ibv_get_device_list(&num_devices);
+	dev_list = ibv_get_device_list(&num_devices);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
-		ibchc_logerr("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logerr("Failure in ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logerr("Please check rdma configuration");
 		throw_vma_exception("No IB capable devices found!");
 	}

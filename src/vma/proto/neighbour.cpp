@@ -816,7 +816,7 @@ neigh_entry::event_t neigh_entry::rdma_event_mapping(struct rdma_cm_event* p_rdm
 		return EV_UNHANDLED;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	neigh_logdbg("Got event %s (%d)", priv_rdma_cm_event_type_str(p_rdma_cm_event->event), p_rdma_cm_event->event);
+	neigh_logdbg("Got event %s (%d)", rdma_event_str(p_rdma_cm_event->event), p_rdma_cm_event->event);
 
 	switch (p_rdma_cm_event->event)
 	{

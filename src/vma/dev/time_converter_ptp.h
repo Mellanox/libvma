@@ -27,7 +27,7 @@ public:
 private:
 	struct ibv_context*       m_p_ibv_context;
 
-	vma_ibv_clock_info        m_clock_values[2];
+	mlx5dv_clock_info         m_clock_values[2];
 	int                       m_clock_values_id;
 };
 

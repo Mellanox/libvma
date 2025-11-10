@@ -74,7 +74,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 		ibch_logpanic("ibv device %p attr allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
 	}
-	vma_ibv_device_attr_comp_mask(m_p_ibv_device_attr);
+
 	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, m_p_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)",
 			  m_p_ibv_device, m_p_ibv_context, errno);
@@ -212,14 +212,14 @@ void ib_ctx_handler::set_ctx_time_converter_status(ts_conversion_mode_t conversi
 			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
 					m_p_ibv_context);
 		} else {
-			vma_ibv_clock_info clock_info;
+			mlx5dv_clock_info clock_info;
 			memset(&clock_info, 0, sizeof(clock_info));
-			int ret = vma_ibv_query_clock_info(m_p_ibv_context, &clock_info);
+			int ret = mlx5dv_get_clock_info(m_p_ibv_context, &clock_info);
 			if (ret == 0) {
 				m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
 			} else {
 				m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
-				ibch_logwarn("vma_ibv_query_clock_info failure for clock_info, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (ret %d)",
+				ibch_logwarn("mlx5dv_get_clock_info failure for clock_info, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (ret %d)",
 						m_p_ibv_context, ret);
 			}
 		}

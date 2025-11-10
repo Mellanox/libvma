@@ -16,12 +16,12 @@ public:
 	wqe_send_ib_handler();
 	virtual ~wqe_send_ib_handler();
 
-	void init_ib_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
-	void init_inline_ib_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
-	void init_not_inline_ib_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
+	void init_ib_wqe(ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
+	void init_inline_ib_wqe(ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
+	void init_not_inline_ib_wqe(ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
 
 private:
-    void init_path_record(vma_ibv_send_wr & wqe_to_init, struct ibv_ah *ah, uint32_t rem_qkey, uint32_t rem_qpn);
+    void init_path_record(ibv_send_wr & wqe_to_init, struct ibv_ah *ah, uint32_t rem_qkey, uint32_t rem_qpn);
 };
 
 #endif /* WQE_TEMPLATE_SEND_IB_H_ */

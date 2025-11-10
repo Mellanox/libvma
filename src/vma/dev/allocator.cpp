@@ -88,7 +88,7 @@ vma_allocator::~vma_allocator()
 
 void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, void *ptr /* NULL */)
 {
-	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
+	uint64_t access = IBV_ACCESS_LOCAL_WRITE;
 
 	if (ptr) {
 		m_mem_alloc_type = ALLOC_TYPE_REGISTER_MEMORY;
@@ -124,9 +124,9 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
-#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
+#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
 		if (mce_sys_var::HYPER_MSHV != safe_mce_sys().hypervisor) {
-			register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR));
+			register_memory(size, p_ib_ctx_h, (access | IBV_ACCESS_ALLOCATE_MR));
 			__log_info_dbg("Contiguous pages allocation passed successfully");
 			m_mem_alloc_type = ALLOC_TYPE_CONTIG;
 			break;
@@ -319,11 +319,11 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 					m_data_block = p_ib_ctx_h->get_mem_reg(lkey)->addr;
 				}
 				errno = 0; //ibv_reg_mr() set errno=12 despite successful returning
-#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
-				if ((access & VMA_IBV_ACCESS_ALLOCATE_MR) != 0) { // contig pages mode
+#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
+				if ((access & IBV_ACCESS_ALLOCATE_MR) != 0) { // contig pages mode
 					// When using 'IBV_ACCESS_ALLOCATE_MR', ibv_reg_mr will return a pointer that its 'addr' field will hold the address of the allocated memory.
 					// Second registration and above is done using 'IBV_ACCESS_LOCAL_WRITE' and the 'addr' we received from the first registration.
-					access &= ~VMA_IBV_ACCESS_ALLOCATE_MR;
+					access &= ~IBV_ACCESS_ALLOCATE_MR;
 				}
 #endif
 				__log_info_dbg("Registered memory on dev: %s addr=%p length=%lu",

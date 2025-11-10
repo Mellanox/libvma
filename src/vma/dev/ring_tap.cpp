@@ -319,7 +319,7 @@ bool ring_tap::reclaim_recv_buffers(mem_buf_desc_t *buff)
 	return false;
 }
 
-void ring_tap::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+void ring_tap::send_ring_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
 	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
@@ -329,7 +329,7 @@ void ring_tap::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, 
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+void ring_tap::send_lwip_buffer(ring_user_id_t id, ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
 	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
@@ -551,7 +551,7 @@ int ring_tap::mem_buf_tx_release(mem_buf_desc_t* buff_list, bool b_accounting, b
 	return count;
 }
 
-int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
+int ring_tap::send_buffer(ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 {
 	int ret = 0;
 	iovec iovec[wr->num_sge];
@@ -570,7 +570,7 @@ int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 	return ret;
 }
 
-void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
+void ring_tap::send_status_handler(int ret, ibv_send_wr* p_send_wqe)
 {
 	// Pay attention that there is a difference in return values in ring_simple and ring_tap
 	// Non positive value of ret means that we are on error flow (unlike for ring_simple).

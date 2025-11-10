@@ -40,7 +40,7 @@ dm_mgr::dm_mgr() :
 bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats)
 {
 	size_t allocation_size = DM_ALIGN_SIZE(safe_mce_sys().ring_dev_mem_tx, DM_MEMORY_MASK_64);
-	vma_ibv_alloc_dm_attr dm_attr;
+	ibv_alloc_dm_attr dm_attr;
 	vma_ibv_reg_mr_in mr_in;
 	m_p_ring_stat = ring_stats;
 	if (!allocation_size) {
@@ -56,7 +56,7 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	// Allocate on device memory buffer
 	memset(&dm_attr, 0, sizeof(dm_attr));
 	dm_attr.length = allocation_size;
-	m_p_ibv_dm = vma_ibv_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
+	m_p_ibv_dm = ibv_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
 	if (!m_p_ibv_dm) {
 		// Memory allocation can fail if we have already allocated the maximum possible.
 		VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "**************************************************************\n");
@@ -74,7 +74,7 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	// Register On Device Memory MR
 	m_p_dm_mr = vma_ibv_reg_dm_mr(&mr_in);
 	if (!m_p_dm_mr) {
-		vma_ibv_free_dm(m_p_ibv_dm);
+		ibv_free_dm(m_p_ibv_dm);
 		m_p_ibv_dm = NULL;
 		dm_logerr("ibv_free_dm error - dm_mr registration failed, %d %m", errno);
 		return false;
@@ -104,7 +104,7 @@ void dm_mgr::release_resources()
 	}
 
 	if (m_p_ibv_dm) {
-		if (vma_ibv_free_dm(m_p_ibv_dm)) {
+		if (ibv_free_dm(m_p_ibv_dm)) {
 			dm_logerr("ibv_free_dm failed %d %m", errno);
 		} else {
 			dm_logdbg("ibv_free_dm success");
