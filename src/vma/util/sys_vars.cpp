@@ -276,15 +276,21 @@ int mce_sys_var::hex_to_cpuset(char *start, cpu_set_t *cpu_set)
 int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 {
 	int ret;
-	char* start = strdup(orig_start); // save the caller string from strtok destruction.
 
+	int len = strlen(orig_start);
+	if (len == 2 && orig_start[0] == '-' && orig_start[1] == '1') {
+		CPU_ZERO(cpu_set);
+		return 0;
+	}
+
+	char *start = strdup(orig_start); // save the caller string from strtok destruction.
 	/*
 	 * We expect a hex number or comma delimited cpulist.  Check for 
 	 * starting characters of "0x" or "0X" and if present then parse
 	 * the string as a hexidecimal value, otherwise treat it as a 
 	 * cpulist.
 	 */
-	if ((strlen(start) > 2) &&
+	if ((len > 2) &&
 		(start[0] == '0') &&
 		((start[1] == 'x') || (start[1] == 'X'))) {
 		ret = hex_to_cpuset(start + 2, cpu_set);

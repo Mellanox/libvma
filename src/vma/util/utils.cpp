@@ -414,13 +414,26 @@ int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_l
 
 int read_file_to_int(const char *path, int default_value)
 {
-	int value = -1;
-	std::ifstream file_stream(path);
-	if (!file_stream || !(file_stream >> value)) {
-		__log_warn("ERROR while getting int from from file %s, we'll use default %d", path, default_value);
-		return default_value;
+	int fd, sz;
+	char c[21] = {};
+
+	fd = open(path, O_RDONLY);
+	if (fd >= 0) {
+		sz = read(fd, c, 20);
+		if (sz > 0) {
+			int value;
+			c[sz] = '\0';
+			int n = sscanf(c, "%d", &value);
+			if (n == 1) {
+				close(fd);
+				return value;
+			}
+		}
+		close(fd);
 	}
-	return value;
+
+	__log_warn("ERROR while getting int from from file %s, we'll use default %d", path, default_value);
+	return default_value;
 }
 
 int get_ifinfo_from_ip(const struct sockaddr& addr, char* ifname, uint32_t& ifflags)
