@@ -59,7 +59,7 @@ bool rfs_uc::prepare_flow_spec()
 			if (0 == p_ring->m_p_qp_mgr->get_underly_qpn()) {
 				attach_flow_data_ib_ipv4_tcp_udp_v1_t* attach_flow_data_ib_v1 = NULL;
 
-				attach_flow_data_ib_v1 = new attach_flow_data_ib_ipv4_tcp_udp_v1_t(p_ring->m_p_qp_mgr);
+				attach_flow_data_ib_v1 = new_malloc<attach_flow_data_ib_ipv4_tcp_udp_v1_t>(p_ring->m_p_qp_mgr);
 				ibv_flow_spec_ib_set_by_dst_qpn(&(attach_flow_data_ib_v1->ibv_flow_attr.ib),
 							htonl(((IPoIB_addr*)p_ring->m_p_l2_addr)->get_qpn()));
 				p_ipv4 = &(attach_flow_data_ib_v1->ibv_flow_attr.ipv4);
@@ -68,7 +68,7 @@ bool rfs_uc::prepare_flow_spec()
 				break;
 			}
 #endif
-			attach_flow_data_ib_v2 = new attach_flow_data_ib_ipv4_tcp_udp_v2_t(p_ring->m_p_qp_mgr);
+			attach_flow_data_ib_v2 = new_malloc<attach_flow_data_ib_ipv4_tcp_udp_v2_t>(p_ring->m_p_qp_mgr);
 
 			p_ipv4 = &(attach_flow_data_ib_v2->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_ib_v2->ibv_flow_attr.tcp_udp);
@@ -77,7 +77,7 @@ bool rfs_uc::prepare_flow_spec()
 			}
 		case VMA_TRANSPORT_ETH:
 			{
-			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(p_ring->m_p_qp_mgr);
+			attach_flow_data_eth = new_malloc<attach_flow_data_eth_ipv4_tcp_udp_t>(p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_eth_set(&(attach_flow_data_eth->ibv_flow_attr.eth),
 					p_ring->m_p_l2_addr->get_address(),
