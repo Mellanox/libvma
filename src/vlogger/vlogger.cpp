@@ -17,8 +17,6 @@
 #include <fcntl.h>
 
 #include "utils/bullseye.h"
-#include "vma/util/utils.h"
-#include "vma/util/sys_vars.h"
 
 #define VLOG_DEFAULT_MODULE_NAME "VMA"
 #define VMA_LOG_CB_ENV_VAR "VMA_LOG_CB_FUNC_PTR"
@@ -31,7 +29,7 @@ vlog_levels_t* g_p_vlogger_level = NULL;
 uint8_t      g_vlogger_details = 0;
 uint8_t*     g_p_vlogger_details = NULL;
 uint32_t     g_vlogger_usec_on_startup = 0;
-bool         g_vlogger_log_in_colors = MCE_DEFAULT_LOG_COLORS;
+bool         g_vlogger_log_in_colors = false;
 vma_log_cb_t g_vlogger_cb = NULL;
 
 namespace log_level
