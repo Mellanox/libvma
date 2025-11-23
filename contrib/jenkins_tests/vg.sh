@@ -68,7 +68,7 @@ for test_link in $test_ip_list; do
 		test_name=${test_in}-${test_n}
 
 		vg_args="-v \
-			--memcheck:leak-check=full --track-origins=yes --read-var-info=yes \
+			--memcheck:leak-check=full --track-origins=yes --fair-sched=yes --read-var-info=yes \
 			--errors-for-leak-kinds=definite --show-leak-kinds=definite,possible \
 			--undef-value-errors=yes --track-fds=yes --num-callers=32 \
 			--fullpath-after=${WORKSPACE} --gen-suppressions=all \
