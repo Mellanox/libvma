@@ -73,6 +73,7 @@ for test_link in $test_ip_list; do
 			--undef-value-errors=yes --track-fds=yes --num-callers=32 \
 			--fullpath-after=${WORKSPACE} --gen-suppressions=all \
 			--suppressions=${WORKSPACE}/contrib/valgrind/valgrind_vma.supp \
+			--fair-sched=yes \
 			"
 		eval "${sudo_cmd} LD_PRELOAD=$test_lib \
 			${vg_tool} --log-file=${vg_dir}/${test_name}-valgrind-sr.log $vg_args \
