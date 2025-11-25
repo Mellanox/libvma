@@ -102,7 +102,7 @@ void stats_data_reader::handle_timer_expired(void *ctx)
 
 void stats_data_reader::register_to_timer()
 {
-	m_timer_handler = g_p_event_handler_manager->register_timer_event(STATS_PUBLISHER_TIMER_PERIOD, g_p_stats_data_reader, PERIODIC_TIMER, 0);
+	m_timer_handler = g_p_event_handler_manager->register_timer_event(STATS_PUBLISHER_TIMER_PERIOD, this, PERIODIC_TIMER, 0);
 }
 
 void stats_data_reader::add_data_reader(void* local_addr, void* shm_addr, int size)
@@ -149,6 +149,8 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 		goto shmem_error;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	vlog_printf(VLOG_DEBUG,"%s:%d: Allocated g_p_stats_data_reader pointer as '%p'\n", __func__, __LINE__, g_p_stats_data_reader);
 
 	shmem_size = SHMEM_STATS_SIZE(safe_mce_sys().stats_fd_num_max);
 	buf = malloc(shmem_size);
@@ -277,8 +279,12 @@ void vma_shmem_stats_close()
 	g_sh_mem = NULL;
 	g_p_vlogger_level = NULL;
 	g_p_vlogger_details = NULL;
-	delete g_p_stats_data_reader;
-	g_p_stats_data_reader = NULL;
+	if (g_p_stats_data_reader != NULL) {
+		stats_data_reader* p = g_p_stats_data_reader;
+		g_p_stats_data_reader = NULL;
+		p->set_destroying_state(true);
+		delete p;
+	}
 }
 
 void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
