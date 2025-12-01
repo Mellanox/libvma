@@ -218,6 +218,22 @@ steps:
       jenkins/**/arch-*.tar.gz,
       jenkins/**/output/errors/**/*.html
 
+  - name: Valgrind
+    enable: ${do_valgrind}
+    containerSelector:
+      - "{name: 'skip-container'}"
+    agentSelector:
+      - "{nodeLabel: 'beni09', variant:1}"
+    run: |
+      [ "x${do_valgrind}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_vg=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      ./.ci/artifacts.sh
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz,
+      jenkins/**/vg/*valgrind*.log
+
   - name: Cppcheck
     enable: ${do_cppcheck}
     containerSelector:
@@ -279,22 +295,6 @@ steps:
       jenkins/**/arch-*.tar.gz
     archiveJunit-onfail: |
       jenkins/**/*.xml
-
-  - name: Valgrind
-    enable: ${do_valgrind}
-    containerSelector:
-      - "{name: 'skip-container'}"
-    agentSelector:
-      - "{nodeLabel: 'beni09', variant:1}"
-    run: |
-      [ "x${do_valgrind}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_vg=${action} ./contrib/test_jenkins.sh
-    parallel: false
-    onfail: |
-      ./.ci/artifacts.sh
-    archiveArtifacts-onfail: |
-      jenkins/**/arch-*.tar.gz,
-      jenkins/**/vg/*valgrind*.log
 
   - name: Commit
     enable: ${do_commit}
