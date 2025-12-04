@@ -2712,25 +2712,8 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
 
-	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
-		new_sock->m_vma_thr = true;
-
-		// Before handling packets from flow steering the child should process everything it got from parent
-		while (!new_sock->m_rx_ctl_packets_list.empty()) {
-			vma_desc_list_t temp_list;
-			new_sock->m_rx_ctl_packets_list_lock.lock();
-			temp_list.splice_tail(new_sock->m_rx_ctl_packets_list);
-			new_sock->m_rx_ctl_packets_list_lock.unlock();
-
-			while (!temp_list.empty()) {
-				mem_buf_desc_t* desc = temp_list.get_and_pop_front();
-				desc->inc_ref_count();
-				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
-				if (desc->dec_ref_count() <= 1) //todo reuse needed?
-					new_sock->m_rx_ctl_reuse_list.push_back(desc);
-			}
-		}
-		new_sock->m_vma_thr = false;
+	if (!conn->is_socketxtreme()) {
+		new_sock->m_parent = NULL;
 	}
 
 	new_sock->unlock_tcp_con();
@@ -2755,10 +2738,33 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	conn->unlock_tcp_con();
 
-	/* Do this after auto_accept_connection() call */
-	new_sock->m_parent = NULL;
-
 	new_sock->lock_tcp_con();
+
+	if (conn->is_socketxtreme()) {
+		/* Must be done after auto_accept_connection() call for SocketXtreme flow */
+		new_sock->m_parent = NULL;
+	}
+
+	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
+		new_sock->m_vma_thr = true;
+
+		// Before handling packets from flow steering the child should process everything it got from parent
+		while (!new_sock->m_rx_ctl_packets_list.empty()) {
+			vma_desc_list_t temp_list;
+			new_sock->m_rx_ctl_packets_list_lock.lock();
+			temp_list.splice_tail(new_sock->m_rx_ctl_packets_list);
+			new_sock->m_rx_ctl_packets_list_lock.unlock();
+
+			while (!temp_list.empty()) {
+				mem_buf_desc_t* desc = temp_list.get_and_pop_front();
+				desc->inc_ref_count();
+				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
+				if (desc->dec_ref_count() <= 1) //todo reuse needed?
+					new_sock->m_rx_ctl_reuse_list.push_back(desc);
+			}
+		}
+		new_sock->m_vma_thr = false;
+	}
 
 	return ERR_OK;
 }
