@@ -1875,6 +1875,13 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	/* Try to process socketxtreme_poll() completion directly */
 	if (p_rx_pkt_mem_buf_desc_info->rx.socketxtreme_polled) {
+		if (unlikely(!m_p_rx_ring)) {
+			/* In some flows (e.g. first packet to a fresh listener) the ring
+			 * pointer has not been latched yet. Derive it from the buffer owner
+			 * to avoid NULL dereference while allowing the completion to be
+			 * consumed. */
+			m_p_rx_ring = p_rx_pkt_mem_buf_desc_info->p_desc_owner;
+		}
 		m_socketxtreme.completion = m_p_rx_ring->get_comp();
 		m_socketxtreme.last_buff_lst = NULL;
 	}
