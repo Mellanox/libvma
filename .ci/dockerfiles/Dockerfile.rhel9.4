@@ -35,3 +35,9 @@ RUN dnf install --allowerasing -y \
     librdmacm unzip patch wget make \
     libnl3-devel rpm-build && \
     dnf clean all && rm -rf /var/cache/dnf/*
+
+# Install DOCA
+COPY .ci/scripts/doca_install.sh /tmp/doca_install.sh
+RUN chmod +x /tmp/doca_install.sh && \
+    /tmp/doca_install.sh && \
+    rm -f /tmp/doca_install.sh /tmp/GPG-KEY-Mellanox.pub
