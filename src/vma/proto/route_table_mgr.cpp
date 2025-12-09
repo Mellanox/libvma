@@ -223,6 +223,7 @@ bool route_table_mgr::parse_entry(struct nl_object *nl_obj, void *p_val_context)
 	p_val->set_protocol(rtnl_route_get_protocol(route));
 	p_val->set_scope(rtnl_route_get_scope(route));
 	p_val->set_type(rtnl_route_get_type(route));
+	/* coverity[check_return] */
 	p_val->set_table_id(rtnl_route_get_table(route));
 
 	// Set destination mask and prefix length
@@ -290,8 +291,8 @@ void route_table_mgr::parse_attr(struct rtnl_route *route, route_val *p_val)
 	}
 
 	// Table ID
-	int table_id = rtnl_route_get_table(route);
-	p_val->set_table_id(table_id);
+	/* coverity[check_return] */
+	p_val->set_table_id(rtnl_route_get_table(route));
 
 	// Metrics (e.g., MTU)
 	uint32_t mtu = 0;

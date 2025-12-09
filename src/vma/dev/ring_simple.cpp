@@ -344,6 +344,7 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 				mem_buf_desc_t *desc;
 				if (likely(m_p_cq_mgr_rx->poll_and_process_element_rx(&desc))) {
 					desc->rx.socketxtreme_polled = true;
+					/* coverity[check_return] */
 					rx_process_buffer(desc, NULL);
 					if (m_socketxtreme.completion->events) {
 						m_socketxtreme.completion++;
