@@ -369,7 +369,9 @@ bool sockinfo_tcp::prepare_listen_to_close()
 		new_sock->m_sock_state = TCP_SOCK_INITED;
 		class flow_tuple key;
 		sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(new_sock->m_pcb));
-		m_syn_received.erase(key);
+		if (m_syn_received.erase(key)==0) {
+			si_tcp_logdbg("Unexpected: child socket missing from syn_received list");
+		}
 		m_ready_conn_cnt--;
 		new_sock->lock_tcp_con();
 		new_sock->m_parent = NULL;
@@ -4156,7 +4158,9 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		if (p_cq_ch_info) {
 			ring* p_ring = p_cq_ch_info->get_ring();
 			if (p_ring) {
-				p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+				if (!p_ring->wait_for_notification_and_process_element(fd, &poll_sn)){
+					si_tcp_logwarn("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ring, errno);
+				}
 			}
 		}
 	}
@@ -4518,6 +4522,7 @@ void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 
 		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
 		if (likely(p_desc->lwip_pbuf_get_ref_count()))
+			/* coverity[check_return] */
 			p_desc->lwip_pbuf_dec_ref_count();
 		else
 			__log_err("ref count of %p is already zero, double free??", p_desc);

@@ -224,6 +224,7 @@ BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Run print event info function
 	if (m_new_event_notify_func) {
+		/* coverity[check_return] */
 		m_new_event_notify_func(get_curr_state(), event, m_info.app_hndl);
 	}
 

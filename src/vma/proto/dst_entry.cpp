@@ -61,12 +61,16 @@ dst_entry::~dst_entry()
 			m_p_tx_mem_buf_desc_list = NULL;
 		}
 
-		m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key());
+		if (m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key()) < 0){
+			dst_logwarn("Failed to release ring for allocation key %s", m_ring_alloc_logic.get_key()->to_str());
+		}
 		m_p_ring = NULL;
 	}
 
 	if (m_p_net_dev_entry && m_p_net_dev_val) {
-		g_p_net_device_table_mgr->unregister_observer(m_p_net_dev_val->get_local_addr(), this);
+		if(!g_p_net_device_table_mgr->unregister_observer(m_p_net_dev_val->get_local_addr(), this)) {
+			dst_logwarn("Failed to unregister observer for local address %d.%d.%d.%d", NIPQUAD(m_p_net_dev_val->get_local_addr()));
+		}
 	}
 
 	if (m_p_send_wqe_handler) {
@@ -313,7 +317,9 @@ bool dst_entry::release_ring()
 				m_p_tx_mem_buf_desc_list = NULL;
 			}
 			dst_logdbg("releasing a ring");
-			m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key());
+			if (m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key()) < 0){
+				dst_logwarn("Failed to release ring for allocation key %s", m_ring_alloc_logic.get_key()->to_str());
+			}
 			m_p_ring = NULL;
 		}
 		ret_val = true;
@@ -566,7 +572,9 @@ void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_ke
 		old_ring->mem_buf_tx_release(tmp_list, true);
 	}
 
-	m_p_net_dev_val->release_ring(&old_key);
+	if (m_p_net_dev_val->release_ring(&old_key)<0) {
+		dst_logwarn("Failed to release ring for allocation key %s", old_key.to_str());
+	}
 
 	socket_lock.lock();
 }

@@ -1571,6 +1571,7 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
         }
 
         if (__timeout) {
+			/* coverity[check_return] */
         	gettime(&start_time);
         }
         socket_fd_api* p_socket_object = NULL;
@@ -1591,6 +1592,7 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
                                __flags |= MSG_DONTWAIT;
                        }
                        if (__timeout) {
+							/* coverity[check_return] */
                 	       gettime(&current_time);
                 	       ts_sub(&current_time, &start_time, &delta_time);
                 	       if (ts_cmp(&delta_time, __timeout, >)) {

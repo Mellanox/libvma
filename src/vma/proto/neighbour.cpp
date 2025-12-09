@@ -201,7 +201,9 @@ neigh_entry::~neigh_entry()
 		m_state_machine = NULL;
 	}
 	if (m_p_dev && m_p_ring) {
-		m_p_dev->release_ring(m_ring_allocation_logic.get_key());
+		if (m_p_dev->release_ring(m_ring_allocation_logic.get_key())<0) {
+			neigh_logwarn("Failed to release ring for allocation key %s", m_ring_allocation_logic.get_key()->to_str());
+		}
 		m_p_ring = NULL;
 	}
 	if (m_val) {
@@ -662,6 +664,7 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 		}
 
 		// Check if neigh L2 address changed (HA event) and restart the state machine
+		/* coverity[check_return] */
 		priv_handle_neigh_is_l2_changed(nl_info->lladdr);
 		break;
 	}
