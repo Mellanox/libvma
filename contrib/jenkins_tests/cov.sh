@@ -40,7 +40,7 @@ eval "cov-manage-emit --config ${cov_dir}/coverity_config.xml --dir ${cov_build}
 sleep 1
 
 eval "cov-analyze --config ${cov_dir}/coverity_config.xml \
-	--all --aggressiveness-level low \
+	--all --aggressiveness-level medium \
 	--enable-fnptr --fnptr-models --paths 20000 \
 	--disable-parse-warnings \
 	--dir ${cov_build}"
