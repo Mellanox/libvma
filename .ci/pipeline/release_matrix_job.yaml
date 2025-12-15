@@ -52,9 +52,7 @@ runs_on_dockers:
       arch: 'x86_64',
       tag: '20250630',
       uri: 'vma/$arch/$name/bduck',
-      build_args: '--no-cache --target bduck',
-      runAsUser: '6213',
-      runAsGroup: '101'
+      build_args: '--no-cache --target bduck'
     }
 
 steps:
