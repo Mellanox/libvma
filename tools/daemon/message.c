@@ -487,10 +487,11 @@ err:
 					strerror(errno));
 		}
 	}
-
+	/* coverity[leaked_storage : FALSE] */
 	if (value && !value_new) {
 		free(value);
 	}
-
+	
+	/* coverity[leaked_storage : FALSE] */
 	return (rc ? rc : (int)sizeof(*data));
 }

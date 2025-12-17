@@ -193,6 +193,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	 */
 	cur_head = &cur_element->list;
 	list_for_each(cur_entry, cur_head) {
+		/* coverity[leaked_storage:FALSE] */
+		/* coverity[overwrite_var:FALSE] */
 		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if (cur_element->value[0] == (uint32_t)value->type &&
 			cur_element->value[1] == ip) {
@@ -202,6 +204,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		}
 	}
 	if (cur_entry == cur_head) {
+		/* coverity[leaked_storage:FALSE] */
+		/* coverity[overwrite_var:FALSE] */
 		cur_element = (void *)calloc(1, sizeof(*cur_element));
 		if (NULL == cur_element) {
 			rc = -ENOMEM;
@@ -249,12 +253,16 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		goto err;
 	}
 	list_for_each(cur_entry, cur_head) {
+		/* coverity[leaked_storage:FALSE] */
+		/* coverity[overwrite_var:FALSE] */
 		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if ((int)cur_element->value[0] == bkt) {
 			break;
 		}
 	}
 	if (cur_entry == cur_head) {
+		/* coverity[leaked_storage:FALSE] */
+		/* coverity[overwrite_var:FALSE] */
 		cur_element = (void *)calloc(1, sizeof(*cur_element));
 		if (NULL == cur_element) {
 			rc = -ENOMEM;
@@ -334,7 +342,7 @@ err:
 	value->handle = HANDLE_SET(ht, bkt, id);
 	log_debug("[%d] add flow filter: %x:%x:%x rc=%d\n",
 			pid, ht, bkt, id, rc);
-
+	/* coverity[leaked_storage] */
 	return rc;
 }
 
@@ -630,7 +638,6 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, int if_ind
 		}
 	}
 }
-
 static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, int if_index, int ht_id, int prio, int *rc)
 {
 	struct htid_node_t *htid_node = (void *)calloc(1, sizeof(struct htid_node_t));
@@ -642,11 +649,11 @@ static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, int if_inde
 	INIT_LIST_HEAD(&htid_node->node);
 	htid_node->htid = ht_id;
 	htid_node->prio = prio;
-
 	list_add(&htid_node->node, &ctx->pending_list);
 
 	log_debug("[%d] del flow request was added to the pending list: if %d htid %d prio %d\n",
 							pid, if_index, ht_id, prio);
+	/* coverity[leaked_storage:FALSE] */
 }
 
 static inline void free_htid(struct flow_ctx *ctx, int ht_id)
