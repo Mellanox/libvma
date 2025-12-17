@@ -34,6 +34,7 @@ int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t fl
 	mlx5_qp->qp           = qp;
 	mlx5_qp->qpn          = qp->qp_num;
 	mlx5_qp->flags        = flags;
+	/* coverity[var_deref_op] */
 	mlx5_qp->sq.dbrec     = &dqp.dbrec[MLX5_SND_DBR];
 	mlx5_qp->sq.buf       = dqp.sq.buf;
 	mlx5_qp->sq.wqe_cnt   = dqp.sq.wqe_cnt;

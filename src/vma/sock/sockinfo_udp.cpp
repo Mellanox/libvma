@@ -1207,6 +1207,7 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 
 	m_lock_rcv.lock();
 	while (m_n_rx_pkt_ready_list_count) {
+		/* coverity[returned_null : FALSE] [nonnull]*/
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
 		if (m_p_socket_stats->n_rx_ready_byte_count > m_p_socket_stats->n_rx_ready_byte_limit ||
 				p_rx_pkt_desc->rx.sz_payload == 0U) {
@@ -1375,7 +1376,10 @@ void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
 	mem_buf_desc_t* p_desc = m_rx_pkt_ready_list.front();
-
+	if (unlikely(!p_desc)) {
+		si_udp_logerr("no packet descriptor");
+        return;
+    }
 	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(p_desc->rx.udp.local_if);
 	if (iter == m_rx_nd_map.end()) {
 		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(p_desc->rx.udp.local_if));
@@ -1679,6 +1683,7 @@ tx_packet_to_os:
 	INC_GO_TO_OS_TX_COUNT;
 #endif
 	// Calling OS transmit
+	// coverity[FORWARD_NULL : FALSE]
 	ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __dst, __dstlen);
 
 tx_packet_to_os_stats:
