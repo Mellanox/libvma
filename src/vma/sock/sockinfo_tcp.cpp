@@ -433,6 +433,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
+		/* coverity[dereference:FALSE] */
 		m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		reuse_buffer(p_rx_pkt_desc);
@@ -941,8 +942,6 @@ tx_packet_to_os:
 #endif
 
 	// coverity[FORWARD_NULL : FALSE]
-    // coverity[var_deref_model : FALSE]
-    // coverity[null_dereference : FALSE]
 	ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __dst, __dstlen);
 	save_stats_tx_os(ret);
 	return ret;
@@ -1972,7 +1971,9 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	p_rx_pkt_mem_buf_desc_info->rx.socketxtreme_polled = false;
 
 	while (dropped_count--) {
+		/* coverity[nonnull] */
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.get_and_pop_front();
+		/* coverity[dereference:FALSE] */
 		reuse_buffer(p_rx_pkt_desc);
 	}
 

@@ -276,6 +276,10 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 	int ret;
 	char* start = strdup(orig_start); // save the caller string from strtok destruction.
 
+	if (!start) {
+        vlog_printf(VLOG_WARNING, "Failed to allocate memory for CPU set");
+        return -1;
+    }
 	/*
 	 * We expect a hex number or comma delimited cpulist.  Check for 
 	 * starting characters of "0x" or "0X" and if present then parse

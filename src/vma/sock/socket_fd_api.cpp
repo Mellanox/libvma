@@ -237,19 +237,23 @@ ssize_t socket_fd_api::tx_os(const tx_call_t call_type,
 	switch (call_type) {
 	case TX_WRITE:
 		__log_info_func("calling os transmit with orig write");
+		/* coverity[null_dereference : FALSE]*/
 		return orig_os_api.write(m_fd, p_iov[0].iov_base, p_iov[0].iov_len);
 
 	case TX_WRITEV:
 		__log_info_func("calling os transmit with orig writev");
+		/* coverity[null_dereference : FALSE]*/
 		return orig_os_api.writev(m_fd, p_iov, sz_iov);
 
 	case TX_SEND:
 		__log_info_func("calling os transmit with orig send");
+		/* coverity[null_dereference : FALSE]*/
 		return orig_os_api.send(m_fd, p_iov[0].iov_base, p_iov[0].iov_len,
 		                        __flags);
 
 	case TX_SENDTO:
 		__log_info_func("calling os transmit with orig sendto");
+		/* coverity[null_dereference : FALSE]*/
 		return orig_os_api.sendto(m_fd, p_iov[0].iov_base, p_iov[0].iov_len,
 		                          __flags, __to, __tolen);
 

@@ -404,6 +404,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(ibv_send_wr *pswr)
 
 	// Fill Ethernet segment with header inline, static data
 	// were populated in preset after previous packet send
+	/* coverity[dereference:FALSE] */
 	memcpy(cur_seg+offsetof(struct mlx5_wqe_eth_seg, inline_hdr_start), data_addr, MLX5_ETH_INLINE_HEADER_SIZE);
 	data_addr  += MLX5_ETH_INLINE_HEADER_SIZE;
 	cur_seg += sizeof(struct mlx5_wqe_eth_seg);

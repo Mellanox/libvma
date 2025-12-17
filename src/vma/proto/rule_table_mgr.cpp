@@ -107,13 +107,19 @@ void rule_table_mgr::parse_attr(struct rtnl_rule *rule, rule_val *p_val)
 	// FRA_DST: Destination Address
 	struct nl_addr *dst = rtnl_rule_get_dst(rule);
 	if (dst) {
-		p_val->set_dst_addr(*(in_addr_t *)nl_addr_get_binary_addr(dst));
+		void *binary_addr = nl_addr_get_binary_addr(dst);
+		if (binary_addr) {
+			p_val->set_dst_addr(*(in_addr_t *)binary_addr);
+		}
 	}
 
 	// FRA_SRC: Source Address
 	struct nl_addr *src = rtnl_rule_get_src(rule);
 	if (src) {
-		p_val->set_src_addr(*(in_addr_t *)nl_addr_get_binary_addr(src));
+		void *binary_addr = nl_addr_get_binary_addr(src);
+		if (binary_addr) {
+			p_val->set_src_addr(*(in_addr_t *)binary_addr);
+		}
 	}
 
 	// FRA_IFNAME: Input Interface Name

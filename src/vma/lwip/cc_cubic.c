@@ -184,9 +184,10 @@ cubic_cb_init(struct tcp_pcb *pcb)
 	struct cubic *cubic_data;
 
 	cubic_data = malloc(sizeof(struct cubic));
-	memset(cubic_data, 0, sizeof(*cubic_data));
-	if (cubic_data == NULL)
+	if (cubic_data == NULL){
 		return (ENOMEM);
+	}
+	memset(cubic_data, 0, sizeof(*cubic_data));
 
 	/* Init some key variables with sensible defaults. */
 	cubic_data->t_last_cong = ticks;

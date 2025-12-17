@@ -81,8 +81,13 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL)
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (unlikely(!p_ndev)) {
+		ring_logpanic("Cannot find net_device_val for a ring if_index = %d", get_if_index());
+	}
 	const slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
-
+	if (unlikely(!p_slave)) {
+        ring_logpanic("Cannot find slave for a ring if_index = %d", get_if_index());
+    }
 	ring_logdbg("new ring_simple()");
 
 	/* m_p_ib_ctx, m_tx_lkey should be initialized to be used
@@ -197,7 +202,13 @@ ring_simple::~ring_simple()
 void ring_simple::create_resources()
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (unlikely(!p_ndev)) {
+		ring_logpanic("Cannot find net_device_val for a ring if_index = %d", get_if_index());
+	}
 	const slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
+	if (unlikely(!p_slave)) {
+        ring_logpanic("Cannot find slave for a ring if_index = %d", get_if_index());
+    }
 
 	save_l2_address(p_slave->p_L2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
@@ -771,6 +782,7 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 	}
 
 	head = m_tx_pool.get_and_pop_back();
+	/* coverity[dereference:FALSE] */
 	head->lwip_pbuf.pbuf.ref = 1;
 	n_num_mem_bufs--;
 

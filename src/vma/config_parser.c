@@ -2148,6 +2148,13 @@ int yyerror(const char *msg)
 	char *orig_msg = (char*)malloc(strlen(msg)+25);
 	char *final_msg = (char*)malloc(strlen(msg)+25);
 
+  if (!orig_msg || !final_msg) {
+    __vma_log(9, "Error: Failed to allocate memory for an error message\n");
+    free(orig_msg);
+    free(final_msg);
+    return 1;
+  }
+
 	strcpy(orig_msg, msg);
 	
 	char *word = strtok(orig_msg, " ");
