@@ -1402,14 +1402,14 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 		dst = m_p_dev->get_br_address();
 	}
 
-
-	const unsigned char* peer_mac = dst->get_address();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (src == NULL || dst == NULL) {
 		neigh_logdbg("src or dst is NULL not sending ARP");
 		return false;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+	
+	const unsigned char* peer_mac = dst->get_address();
 
 	m_id = m_p_ring->generate_id(src->get_address(), dst->get_address(), netdevice_eth->get_vlan() ? htons(ETH_P_8021Q) : htons(ETH_P_ARP), htons(ETH_P_ARP), 0, 0, 0, 0);
 	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);

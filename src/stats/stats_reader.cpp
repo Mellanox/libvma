@@ -90,7 +90,7 @@ typedef enum {
 #define VLOG_DETAILS_NUM		4
 #define INIT_VMA_LOG_DETAILS		-1
 #define NANO_TO_MICRO(n)		(((n) + 500) / 1000)
-#define SEC_TO_MICRO(n)			((n) * 1000000)
+#define SEC_TO_MICRO(n)         ((n)*1000000ULL)
 #define TIME_DIFF_in_MICRO(start,end)	(SEC_TO_MICRO((end).tv_sec-(start).tv_sec) + \
 					(NANO_TO_MICRO((end).tv_nsec-(start).tv_nsec)))
 // printf formating when IP is in network byte ordering (for LITTLE_ENDIAN)
