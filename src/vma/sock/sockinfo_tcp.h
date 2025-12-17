@@ -67,7 +67,9 @@ struct socket_option_t {
 
 	socket_option_t(const int _level, const int _optname, const void *_optval, const socklen_t _optlen) :
 		level(_level), optname(_optname), optlen(_optlen), optval(malloc(optlen)) {
-		memcpy(optval, _optval, optlen);
+			if (likely(optval)) {
+				memcpy(optval, _optval, optlen);
+			}
 	}
 
 	~socket_option_t() { if (optval) free(optval); }

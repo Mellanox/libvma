@@ -1207,12 +1207,13 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 
 	m_lock_rcv.lock();
 	while (m_n_rx_pkt_ready_list_count) {
-		/* coverity[returned_null : FALSE] [nonnull]*/
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
+		/* coverity[dereference:FALSE] */
 		if (m_p_socket_stats->n_rx_ready_byte_count > m_p_socket_stats->n_rx_ready_byte_limit ||
 				p_rx_pkt_desc->rx.sz_payload == 0U) {
 			m_rx_pkt_ready_list.pop_front();
 			m_n_rx_pkt_ready_list_count--;
+			/* coverity[dereference:FALSE] */
 			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
 			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;

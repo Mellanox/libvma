@@ -66,12 +66,18 @@ void netlink_route_info::fill(struct rtnl_route* nl_route_obj)
 		unsigned int dst_prefixlen = nl_addr_get_prefixlen(addr);
 		m_route_val->set_dst_mask(htonl(VMA_NETMASK(dst_prefixlen)));
 		m_route_val->set_dst_pref_len(dst_prefixlen);
-		m_route_val->set_dst_addr(*(in_addr_t *) nl_addr_get_binary_addr(addr));
+		void *binary_addr = nl_addr_get_binary_addr(addr);
+		if (binary_addr) {
+			m_route_val->set_dst_addr(*(in_addr_t *) binary_addr);
+		}
 	}
 	
 	addr = rtnl_route_get_pref_src(nl_route_obj);
 	if (addr) {
-		m_route_val->set_src_addr(*(in_addr_t *) nl_addr_get_binary_addr(addr));
+		void *binary_addr = nl_addr_get_binary_addr(addr);
+		if (binary_addr) {
+			m_route_val->set_src_addr(*(in_addr_t *) binary_addr);
+		}
 	}
 	
 	int oif = nl_object_get_compatible_oif(nl_route_obj);

@@ -316,6 +316,7 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 			} else {
 				m_lkey_map_ib_ctx[p_ib_ctx_h] = lkey;
 				if (NULL == m_data_block) {
+					/* coverity[dereference:FALSE] */
 					m_data_block = p_ib_ctx_h->get_mem_reg(lkey)->addr;
 				}
 				errno = 0; //ibv_reg_mr() set errno=12 despite successful returning

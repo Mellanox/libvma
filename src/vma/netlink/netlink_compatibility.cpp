@@ -95,7 +95,10 @@ in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj) {
 		struct nl_addr * addr;
 		addr = rtnl_route_nh_get_gateway(nh);
 		if (addr) {
-			return *(in_addr_t *) nl_addr_get_binary_addr(addr);
+			void *binary_addr = nl_addr_get_binary_addr(addr);
+			if (binary_addr) {
+				return *(in_addr_t *)binary_addr;
+			}
 		}
 	}
 	return INADDR_ANY;

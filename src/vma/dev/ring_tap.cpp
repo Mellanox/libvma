@@ -28,6 +28,9 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
+	if (unlikely(!p_ndev)) {
+		ring_logpanic("Cannot find net_device for ring_tap");
+	}
 	/* Create TAP device and update ring class with new if_index */
 	tap_create(p_ndev);
 
@@ -399,6 +402,7 @@ int ring_tap::process_element_rx(void* pv_fd_ready_array)
 		auto_unlocker lock(m_lock_ring_rx);
 		if (m_rx_pool.size() || request_more_rx_buffers()) {
 			mem_buf_desc_t *buff = m_rx_pool.get_and_pop_front();
+			/* coverity[dereference:FALSE] */
 			ret = orig_os_api.read(m_tap_fd, buff->p_buffer, buff->sz_buffer);
 			if (ret > 0) {
 				/* Data was read and processed successfully */
@@ -459,8 +463,10 @@ mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_
 			return head;
 		}
 	}
-
+	/* coverity[nonnull] */
 	head = m_tx_pool.get_and_pop_back();
+	/* coverity[dereference:FALSE] */
+	/* coverity[var_deref_op:FALSE] */
 	head->lwip_pbuf.pbuf.ref = 1;
 	n_num_mem_bufs--;
 
