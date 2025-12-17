@@ -940,6 +940,9 @@ tx_packet_to_os:
 	INC_GO_TO_OS_TX_COUNT;
 #endif
 
+	// coverity[FORWARD_NULL : FALSE]
+    // coverity[var_deref_model : FALSE]
+    // coverity[null_dereference : FALSE]
 	ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __dst, __dstlen);
 	save_stats_tx_os(ret);
 	return ret;
