@@ -25,12 +25,23 @@
 		memset(__FDS_BITS(__fddst), 0, ((__nfds) + 7) >> 3)
 iomux_func_stats_t g_select_stats;
 
-select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer,
-                         int nfds, fd_set *readfds, fd_set *writefds,
-                         fd_set *exceptfds, timeval *timeout, const sigset_t *__sigmask /* = NULL */) :
+select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer, int nfds,
+						 fd_set *readfds, fd_set *writefds, fd_set *exceptfds, timeval *timeout,
+						 const sigset_t *__sigmask /* = NULL */) :
 	io_mux_call(off_fds_buffer, off_modes_buffer, nfds, __sigmask),
-	m_nfds(nfds), m_readfds(readfds), m_writefds(writefds),
-	m_exceptfds(exceptfds), m_timeout(timeout), m_nfds_with_cq(0), m_b_run_prepare_to_poll(false)
+	m_nfds(nfds),
+	m_readfds(readfds),
+	m_writefds(writefds),
+	m_exceptfds(exceptfds),
+	m_timeout(timeout),
+	m_orig_readfds {},
+	m_orig_writefds {},
+	m_orig_exceptfds {},
+	m_nfds_with_cq(0),
+	m_b_run_prepare_to_poll(false),
+	m_os_rfds {0},
+	m_os_wfds {0},
+	m_cq_rfds {0}
 {
 	int fd;
 	//socket_fd_api* temp_sock_fd_api = NULL; 

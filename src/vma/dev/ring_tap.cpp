@@ -97,7 +97,7 @@ void ring_tap::tap_create(net_device_val* p_ndev)
 	int rc = 0, tap_if_index = -1, ioctl_sock = -1;
 	struct ifreq ifr;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
-	unsigned char hw_addr[ETH_ALEN];
+	unsigned char hw_addr[ETH_ALEN] = {0};
 
 	/* Open TAP device */
 	if( (m_tap_fd = orig_os_api.open("/dev/net/tun", O_RDWR)) < 0 ) {
