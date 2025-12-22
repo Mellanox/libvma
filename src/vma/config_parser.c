@@ -1984,6 +1984,7 @@ yyerrlab:
                 yymsgp = yymsg;
               }
           }
+        /* coverity[uninit_use_in_call:FALSE] */
         yyerror (yymsgp);
         if (yysyntax_error_status == 2)
           goto yyexhaustedlab;

@@ -83,7 +83,7 @@ void netlink_route_info::fill(struct rtnl_route* nl_route_obj)
 	int oif = nl_object_get_compatible_oif(nl_route_obj);
 	if (oif > 0) {
 		m_route_val->set_if_index(oif);
-		char if_name[IFNAMSIZ];
+		char if_name[IFNAMSIZ] = {0};
 		if_indextoname(oif, if_name);
 		m_route_val->set_if_name(if_name);
 	}

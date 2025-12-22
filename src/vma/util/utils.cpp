@@ -515,7 +515,7 @@ int get_iftype_from_ifname(const char* ifname)
 
 	char iftype_filename[100];
 	char iftype_value_str[32];
-	char base_ifname[32];
+	char base_ifname[32] = {0};
 	int iftype_value = -1;
 
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
@@ -534,7 +534,7 @@ int get_if_mtu_from_ifname(const char* ifname)
 
 	char if_mtu_len_filename[100];
 	char if_mtu_value_str[32];
-	char base_ifname[32];
+	char base_ifname[32] = {0};
 	int if_mtu_value = 0;
 
 	/* initially try reading MTU from ifname. In case of failure (expected in alias ifnames) - try reading MTU from base ifname */
@@ -808,7 +808,7 @@ out:
 bool get_bond_name(IN const char* ifname, OUT char* bond_name, IN int sz)
 {
 	char upper_path[256];
-	char base_ifname[IFNAMSIZ];
+	char base_ifname[IFNAMSIZ] = {0};
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	struct ifaddrs *ifaddr, *ifa;
 	bool ret = false;
@@ -854,7 +854,7 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags)
 {
 	char netvsc_path[256];
-	char base_ifname[IFNAMSIZ];
+	char base_ifname[IFNAMSIZ] = {0};
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	struct ifaddrs *ifaddr, *ifa;
 	bool ret = false;
@@ -886,7 +886,7 @@ bool check_netvsc_device_exist(const char* ifname)
 {
 	int ret = -1;
 	char device_path[256] = {0};
-	char base_ifname[IFNAMSIZ];
+	char base_ifname[IFNAMSIZ] = {0};
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	sprintf(device_path, NETVSC_DEVICE_CLASS_FILE, base_ifname);
 	char sys_res[1024] = {0};

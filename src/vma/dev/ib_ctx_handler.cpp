@@ -34,6 +34,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	, m_removed(false)
 	, m_lock_mr("spin_lock_mr")
 	, m_p_ctx_time_converter(NULL)
+	, m_str {}
 {
 	if (NULL == desc) {
 		ibch_logpanic("Invalid ib_ctx_handler");

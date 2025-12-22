@@ -152,7 +152,12 @@ const char* ring_alloc_logic_attr::to_str()
 	return m_str;
 }
 
-net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_device_val lock")
+net_device_val::net_device_val(struct net_device_val_desc *desc)
+    : m_lock("net_device_val lock")
+    , m_l2_if_addr {}
+    , m_l2_bc_addr {}
+	, m_str {}
+    , m_base_name {}
 {
 	bool valid = false;
 	ib_ctx_handler* ib_ctx;
@@ -1362,7 +1367,7 @@ L2_address* net_device_val_eth::create_L2_address(const char* ifname)
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
-	unsigned char hw_addr[ETH_ALEN];
+	unsigned char hw_addr[ETH_ALEN] = {0};
 	get_local_ll_addr(ifname, hw_addr, ETH_ALEN, false);
 	return new ETH_addr(hw_addr);
 }
@@ -1373,7 +1378,7 @@ void net_device_val_eth::create_br_address(const char* ifname)
 		delete m_p_br_addr;
 		m_p_br_addr = NULL;
 	}
-	uint8_t hw_addr[ETH_ALEN];
+	uint8_t hw_addr[ETH_ALEN] = {0};
 	get_local_ll_addr(ifname, hw_addr, ETH_ALEN, true);
 	m_p_br_addr = new ETH_addr(hw_addr);
 
@@ -1465,7 +1470,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	qp_init_attr.qp_type = qp_type;
 
 	//find ib_cxt
-	char base_ifname[IFNAMSIZ];
+	char base_ifname[IFNAMSIZ] = {0};
 	get_base_interface_name((const char*)(ifname), base_ifname, sizeof(base_ifname));
 	int port_num = get_port_from_ifname(base_ifname);
 	ib_ctx_handler* p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
