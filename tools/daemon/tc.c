@@ -60,7 +60,6 @@ tc_t tc_create(void)
 	return tc;
 err:
 	free(tc);
-	tc = NULL;
 
 	return NULL;
 }
@@ -70,7 +69,6 @@ void tc_destroy(tc_t tc)
 	if (tc) {
 		nl_destroy(tc->nl);
 		free(tc);
-		tc = NULL;
 	}
 }
 

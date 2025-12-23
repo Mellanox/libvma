@@ -137,9 +137,9 @@ void ring_bond::restart()
 			if (p_ring_tap) {
 				size_t num_ring_rx_fds = 0;
 				int *ring_rx_fds_array = NULL;
-				int epfd = -1;
-				int fd = -1;
-				int rc = 0;
+				int rc;
+				int fd;
+				int epfd;
 				size_t i, j, k;
 				NOT_IN_USE(rc); // Suppress --enable-opt-log=high warning
 
@@ -273,7 +273,7 @@ void ring_bond::restart()
 		}
 		popup_xmit_rings();
 
-		int ret = 0;
+		int ret;
 		uint64_t poll_sn = cq_mgr::m_n_global_sn;
 		ret = request_notification(CQT_RX, poll_sn);
 		if (ret < 0) {

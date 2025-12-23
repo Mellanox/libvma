@@ -94,7 +94,7 @@ void ring_tap::tap_create(net_device_val* p_ndev)
 	#define TAP_STR_LENGTH	512
 	#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
-	int rc = 0, tap_if_index = -1, ioctl_sock = -1;
+	int rc, tap_if_index, ioctl_sock = -1;
 	struct ifreq ifr;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
 	unsigned char hw_addr[ETH_ALEN] = {0};

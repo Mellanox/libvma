@@ -30,7 +30,7 @@ struct nl_object {
 nl_t nl_create(void)
 {
 	nl_t nt = NULL;
-	int fd = -1;
+	int fd;
 
 	nt = (struct nl_object *)malloc(sizeof(*nt));
 	if (nt) {
@@ -72,7 +72,6 @@ err:
 	if (nt) {
 		free(nt);
 	}
-	nt = NULL;
 
 	return NULL;
 }
@@ -82,7 +81,6 @@ void nl_destroy(nl_t nt)
 	if (nt) {
 		close(nt->fd);
 		free(nt);
-		nt = NULL;
 	}
 }
 
@@ -91,7 +89,7 @@ int nl_send(nl_t nt, struct nlmsghdr *nl_msg)
 	struct sockaddr_nl nladdr;
 	struct iovec iov;
 	struct msghdr msg;
-	int ret = -1;
+	int ret;
 
 	nl_msg->nlmsg_seq = nt->seq++;
 

@@ -70,7 +70,7 @@ int proc_loop(void)
 	while ((0 == daemon_cfg.sig) && (errno != EINTR)) {
 		fd_set readfds;
 		struct timeval tv;
-		int max_fd = -1;
+		int max_fd;
 
 		FD_ZERO(&readfds);
 		FD_SET(daemon_cfg.sock_fd, &readfds);

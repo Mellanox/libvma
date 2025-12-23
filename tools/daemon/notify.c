@@ -174,7 +174,7 @@ err:
 
 static int setup_notify(void)
 {
-	int fd = -1;
+	int fd;
 
 	/* Set method for processing
 	 * fanotify has the highest priority because it has better

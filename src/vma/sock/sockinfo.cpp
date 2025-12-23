@@ -698,8 +698,10 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		// Need to register as observer to net_device
 		net_device_resources_t nd_resources;
 		nd_resources.refcnt = 0;
+		/* coverity[assigned_pointer] */
 		nd_resources.p_nde = NULL;
 		nd_resources.p_ndv = NULL;
+		/* coverity[assigned_pointer] */
 		nd_resources.p_ring = NULL;
 
 		BULLSEYE_EXCLUDE_BLOCK_START

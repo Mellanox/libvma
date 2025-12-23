@@ -201,7 +201,6 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 	p_shmem = g_sh_mem_info.p_sh_stats;
 
 	free(buf);
-	buf = NULL;
 
 	goto success;
 

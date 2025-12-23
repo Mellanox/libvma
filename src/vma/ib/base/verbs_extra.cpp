@@ -303,6 +303,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 
 	if (rate_limit.rate && (rl_changes & RL_RATE)) {
 		qp_attr.rate_limit = rate_limit.rate;
+		/* coverity[assigned_value] */
 		attr_mask |= IBV_QP_RATE_LIMIT;
 	}
 #ifdef DEFINED_IBV_QP_SUPPORT_BURST

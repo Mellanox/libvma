@@ -342,8 +342,8 @@ net_device_val::~net_device_val()
 
 void net_device_val::set_ip_array()
 {
-	int rc = 0;
-	int fd = -1;
+	int rc;
+	int fd;
 	struct {
 		struct nlmsghdr hdr;
 		struct ifaddrmsg addrmsg;
