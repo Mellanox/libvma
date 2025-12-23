@@ -845,7 +845,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 			case IP_MULTICAST_TTL:
 				{
-					int n_mc_ttl = -1;
+					int n_mc_ttl;
 					if (__optlen == sizeof(m_n_mc_ttl))
 						n_mc_ttl = *(char*)__optval;
 					else if (__optlen == sizeof(int))

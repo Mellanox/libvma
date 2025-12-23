@@ -90,7 +90,6 @@ void hash_destroy(hash_t ht)
 			ht->hash_table = NULL;
 		}
 		free(ht);
-		ht = NULL;
 	}
 }
 

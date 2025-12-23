@@ -318,6 +318,7 @@ void print_vma_global_settings()
 	vlog_printf(VLOG_INFO,"Cmd Line: %s\n", safe_mce_sys().app_name);
 
 	// Use DEBUG level logging with more details in RPM release builds
+	/* coverity[assigned_value] */
 	vlog_levels_t log_level = VLOG_DEBUG;
 #if !defined(PRJ_LIBRARY_RELEASE) || (PRJ_LIBRARY_RELEASE == 0)
 	// If non RPM (development builds) use more verbosity

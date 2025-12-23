@@ -386,7 +386,7 @@ const char* iphdr_protocol_type_to_str(const int type)
 
 int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level /*= VLOG_ERROR*/)
 {
-	int len = -1;
+	int len;
 	int fd = open(path, O_RDONLY);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (fd < 0) {
@@ -571,7 +571,7 @@ int get_window_scaling_factor(int tcp_rmem_max, int core_rmem_max)
 
 int get_ipv4_from_ifname(char *ifname, struct sockaddr_in *addr)
 {
-	int ret = -1;
+	int ret;
 	__log_func("find ip addr for ifname '%s'", ifname);
 
 	int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
@@ -933,9 +933,8 @@ bool check_device_exist(const char* ifname, const char *path)
 {
 	char device_path[256] = {0};
 	int fd = -1;
-	int n = -1;
+	int n = snprintf(device_path, sizeof(device_path), path, ifname);
 
-	n = snprintf(device_path, sizeof(device_path), path, ifname);
 	if (likely((0 < n) && (n < (int)sizeof(device_path)))) {
 		fd = orig_os_api.open(device_path, O_RDONLY);
 		if (fd >= 0) {
@@ -951,17 +950,16 @@ bool check_device_exist(const char* ifname, const char *path)
 
 bool check_device_name_ib_name(const char* ifname, const char* ibname)
 {
-	int n = -1;
-	int fd = -1;
+	int fd;
 	char ib_path[IBV_SYSFS_PATH_MAX]= {0};
 	const char *str_ifname = ifname;
-
+	int n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
+	ibname, str_ifname);
 	/* Case #1:
 	 * Direct mapping between if device and ib device
 	 * For example: ens4f1 -> mlx5_3
 	 */
-	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
-			ibname, str_ifname);
+	
 	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
 		fd = open(ib_path, O_RDONLY);
 		if (fd >= 0) {

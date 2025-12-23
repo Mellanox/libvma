@@ -147,8 +147,8 @@ net_device_table_mgr::~net_device_table_mgr()
 
 void net_device_table_mgr::update_tbl()
 {
-	int rc = 0;
-	int fd = -1;
+	int rc;
+	int fd;
 	struct {
 		struct nlmsghdr hdr;
 		struct ifinfomsg infomsg;

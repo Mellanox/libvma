@@ -241,6 +241,7 @@ ssize_t pipeinfo::tx(vma_tx_call_attr_t &tx_arg)
 	const int __flags = tx_arg.attr.msg.flags;
 	const struct sockaddr *__to = tx_arg.attr.msg.addr;
 	const socklen_t __tolen = tx_arg.attr.msg.len;
+	/* coverity[assigned_value] */
 	ssize_t ret = -1;
 
 	pi_logfunc("");

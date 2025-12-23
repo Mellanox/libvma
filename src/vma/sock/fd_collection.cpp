@@ -618,7 +618,6 @@ void  fd_collection::handle_timer_expired(void* user_data)
 
 			if (p_sock_fd) {
 				p_sock_fd->clean_obj();
-				p_sock_fd = NULL;
 			}
 
 			//Deactivate the timer since there are no any pending to remove socket to handle anymore

@@ -295,7 +295,7 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 {
 	ib_context_map_t *ib_ctx_map = NULL;
 	ib_ctx_handler *p_ib_ctx_h_ref = p_ib_ctx_h;
-	uint32_t lkey = (uint32_t)(-1);
+	uint32_t lkey;
 	bool failed = false;
 
 	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
@@ -363,9 +363,9 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 
 void vma_allocator::deregister_memory()
 {
-	ib_ctx_handler *p_ib_ctx_h = NULL;
-	ib_context_map_t *ib_ctx_map = NULL;
-	uint32_t lkey = (uint32_t)(-1);
+	ib_ctx_handler *p_ib_ctx_h;
+	ib_context_map_t *ib_ctx_map;
+	uint32_t lkey;
 
 	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
 	if (ib_ctx_map) {

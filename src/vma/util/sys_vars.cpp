@@ -300,8 +300,8 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 
 void mce_sys_var::read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr)
 {
-	int n = -1;
-	char* d_pos = NULL;
+	int n;
+	char* d_pos;
 
 	if (NULL == env_ptr || NULL == mce_sys_name || mce_sys_max_size < 2) {
 		return ;
