@@ -1,3 +1,10 @@
+Version 9.8.82-1:
+Date + Time 2025-12-24
+=============================================================
+Fixed:
+	- RM #4625338 Fix coverity issues
+	- RM #4751690 Fix FIN flow during SYN handshake in VMA_TCP_CTL
+
 Version 9.8.81-1:
 Date + Time 2025-12-14
 =============================================================
