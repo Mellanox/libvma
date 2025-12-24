@@ -1,0 +1,9 @@
+ARG ARCH=x86_64
+ARG HARBOR_URL=nbu-harbor.gtm.nvidia.com
+FROM ${HARBOR_URL}/hpcx/${ARCH}/ubuntu24.04/base
+
+# Install DOCA
+COPY .ci/scripts/doca_install.sh /tmp/doca_install.sh
+RUN chmod +x /tmp/doca_install.sh && \
+    /tmp/doca_install.sh && \
+    rm -f /tmp/doca_install.sh /tmp/GPG-KEY-Mellanox.pub

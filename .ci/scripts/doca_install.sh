@@ -4,8 +4,8 @@ set -xvEe -o pipefail
 
 DOCA_REPO_PATH="https://doca-repo-prod.nvidia.com/internal/repo/doca"
 TARGET=${TARGET:=all}
-DOCA_VERSION=${DOCA_VERSION:='2.8.0'}
-DOCA_BRANCH=${DOCA_BRANCH:="latest"}
+DOCA_VERSION='3.2.0'
+DOCA_BRANCH="latest"
 GPG_KEY="GPG-KEY-Mellanox.pub"
 
 function error_handler() {
@@ -56,7 +56,8 @@ function map_os_and_arch {
             ;;
 
         rhel|ol)
-            OS="${ID}${VERSION_ID}"
+            # Extract major version only (e.g., 9.6 -> 9)
+            OS="${ID}${VERSION_ID%%.*}"
             GPG_KEY_CMD='rpm --import "${GPG_KEY}"'
             REPO_CMD='yum install -y yum-utils && yum-config-manager --add-repo "${REPO_URL}"'
             PKG_MGR="yum --nogpgcheck"
@@ -90,7 +91,7 @@ function map_os_and_arch {
 map_os_and_arch
 
 # Install DOCA repo GPG key
-${CURL_INSTALL}; curl -o "${GPG_KEY}" "${DOCA_REPO_PATH}/${DOCA_VERSION}/${OS}/${ARCH}/${DOCA_BRANCH}/${GPG_KEY}" 
+${CURL_INSTALL}; curl -o "${GPG_KEY}" "${DOCA_REPO_PATH}/${DOCA_VERSION}/${OS}/${ARCH}/${DOCA_BRANCH}/${GPG_KEY}"
 eval "${GPG_KEY_CMD}"
 
 # Install DOCA repo
@@ -98,12 +99,12 @@ REPO_URL="${DOCA_REPO_PATH}/${DOCA_VERSION}/${OS}/${ARCH}/${DOCA_BRANCH}/"
 eval "${REPO_CMD}"
 
 # Install DOCA
-${PKG_MGR} ${UPDATE_CMD} 
+${PKG_MGR} ${UPDATE_CMD}
 
 ${PKG_MGR} install -y doca-ofed-userspace
 
 echo "=============================================="
-echo 
+echo
 echo "DOCA for Host has been successfully installed"
 echo
 echo "=============================================="
