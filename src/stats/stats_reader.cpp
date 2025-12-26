@@ -15,9 +15,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <list>
+#include <netinet/in.h>
 #include <signal.h>
 #include <getopt.h>		/* getopt()*/
-#include <errno.h>
 #include <dirent.h>
 #include <string.h>
 #include <vector>
