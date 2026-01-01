@@ -1,0 +1,8 @@
+ARG ARCH=x86_64
+FROM nbu-harbor.gtm.nvidia.com/hpcx/${ARCH}/rhel8.6/builder:inbox
+
+# Install DOCA
+COPY .ci/scripts/doca_install.sh /tmp/doca_install.sh
+RUN chmod +x /tmp/doca_install.sh && \
+    /tmp/doca_install.sh && \
+    rm -f /tmp/doca_install.sh /tmp/GPG-KEY-Mellanox.pub

@@ -31,17 +31,6 @@
             name: "DEBUG"
             default: 0
             description: "Enable debug prints and traces, valid values are 0-9."
-        - string:
-            name: "DOCA_VERSION"
-            default: "2.8.0"
-            description: "DOCA version - see https://developer.nvidia.com/doca-downloads?deployment_platform=Host-Server&deployment_package=DOCA-Host"
-        - choice:
-            name: DOCA_BRANCH
-            choices:
-                - latest
-                - stage
-                - dev
-            description: "On which DOCA branch to run?"
         - bool:
             name: "do_build"
             default: true
