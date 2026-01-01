@@ -4162,7 +4162,8 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		if (p_cq_ch_info) {
 			ring* p_ring = p_cq_ch_info->get_ring();
 			if (p_ring) {
-				if (!p_ring->wait_for_notification_and_process_element(fd, &poll_sn)){
+				const int cq_ret = p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+				if (cq_ret < 0 && errno != EAGAIN) {
 					si_tcp_logwarn("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ring, errno);
 				}
 			}
