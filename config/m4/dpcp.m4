@@ -1,6 +1,6 @@
 # dpcp.m4 - Library to operate with DevX
 # 
-# Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2001-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #
 
