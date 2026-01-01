@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2013-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2013-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
 #
 #
