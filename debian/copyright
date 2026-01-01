@@ -3,7 +3,7 @@ Upstream-Name: libvma
 Source: https://github.com/Mellanox/libvma
 
 Files: *
-Copyright: 2001-2022 NVIDIA CORPORATION & AFFILIATES.
+Copyright: 2001-2026 NVIDIA CORPORATION & AFFILIATES.
 License: GPL-2 or BSD
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,7 +46,7 @@ Copyright:
  2007-2008, Swinburne University of Technology, Melbourne, Australia.
  2009-2010, Lawrence Stewart <lstewart@freebsd.org>
  2010, The FreeBSD Foundation
- 2001-2022 NVIDIA CORPORATION & AFFILIATES.
+ 2001-2026 NVIDIA CORPORATION & AFFILIATES.
 License: GPL-2 and 2BSD
 
 Files: src/vma/lwip/def.h
