@@ -222,7 +222,7 @@ void ring_simple::create_resources()
 	BULLSEYE_EXCLUDE_BLOCK_END
 	VALGRIND_MAKE_MEM_DEFINED(m_p_tx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	// Check device capabilities for max QP work requests
-	uint32_t max_qp_wr = ALIGN_WR_DOWN(VMA_MAX_QP_WR - 1);
+	uint32_t max_qp_wr = ALIGN_WR_DOWN(m_p_ib_ctx->get_ibv_device_attr()->max_qp_wr - 1);
 	m_tx_num_wr = safe_mce_sys().tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {
 		ring_logwarn("Allocating only %d Tx QP work requests while user requested %s=%d for QP on interface",
