@@ -33,14 +33,14 @@ qp_mgr_eth_direct::qp_mgr_eth_direct(struct qp_mgr_desc *desc,
 
 cq_mgr* qp_mgr_eth_direct::init_tx_cq_mgr()
 {
-	m_tx_num_wr = m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr;
+	m_tx_num_wr = VMA_MAX_QP_WR;
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 }
 
 int qp_mgr_eth_direct::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 {
 	qp_init_attr.cap.max_recv_wr = 0; // Wrapper Round for Bugs SW #2080510,SW #2020853 issue,[VMA - Feature #2076088] Support creation of VMA Direct QP only with TX HW resources 
-	qp_init_attr.cap.max_send_wr = m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr;
+	qp_init_attr.cap.max_send_wr = VMA_MAX_QP_WR;
 	qp_init_attr.cap.max_send_sge = 1;
 	qp_init_attr.cap.max_recv_sge = 1;
 	qp_init_attr.cap.max_inline_data = 0;

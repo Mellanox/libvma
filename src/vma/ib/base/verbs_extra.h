@@ -67,6 +67,8 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
 int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num);
 int priv_ibv_query_burst_supported(struct ibv_qp *qp, uint8_t port_num);
 
+#define VMA_MAX_QP_WR 32768 // Override the uncompatible number returned by the driver.
+
 //ibv_create_qp
 #ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
 #define vma_ibv_create_qp(pd, attr)                ibv_create_qp_ex((pd)->context, attr)
