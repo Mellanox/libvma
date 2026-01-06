@@ -170,7 +170,7 @@ void ib_ctx_handler::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " max_qp_wr: %d", VMA_MAX_QP_WR);
+	sprintf(str_x, " max_qp_wr: %d", get_ibv_device_attr()->max_qp_wr);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
