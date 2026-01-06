@@ -141,7 +141,7 @@ int qp_mgr::configure(struct qp_mgr_desc *desc)
 			m_p_ib_ctx_handler->get_ibname(), m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
 	// Check device capabilities for max QP work requests
-	m_max_qp_wr = ALIGN_WR_DOWN(m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr - 1);
+	m_max_qp_wr = ALIGN_WR_DOWN(VMA_MAX_QP_WR - 1);
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user "
 			   "requested %s=%d for QP on <%p, %d>",
@@ -189,6 +189,12 @@ int qp_mgr::configure(struct qp_mgr_desc *desc)
 	qp_init_attr.recv_cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
 	qp_init_attr.sq_sig_all = 0;
+
+	qp_logdbg("Calling ibv_create_qp. qp_init_attr.cap: max_send_wr=%d, max_recv_wr=%d, "
+		      "max_inline_data=%d, max_send_sge=%d, max_recv_sge=%d\n",
+	          qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr,
+			  qp_init_attr.cap.max_inline_data, qp_init_attr.cap.max_send_sge,
+			  qp_init_attr.cap.max_recv_sge);
 
 	// Create the QP
 	if (prepare_ibv_qp(qp_init_attr)) {
