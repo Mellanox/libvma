@@ -21,7 +21,7 @@
             description: "Tag to release"
         - string:
             name: sha1
-            default: 'tags/$release_tag'
+            default: '$release_tag'
             description: 'commit to use, defaults to the commit tag provided under release_tag'
         - string:
             name: "revision"
@@ -62,8 +62,7 @@
                 credentials-id: 'svc-nbu-swx-media_ssh_key'
                 branches: ['$sha1']
                 shallow-clone: false
-                depth: 2
-                refspec: "+refs/pull/*:refs/remotes/origin/pr/*"
+                refspec: "+refs/pull/*:refs/remotes/origin/pr/* +refs/tags/*:refs/remotes/origin/tags/*"
                 browser: githubweb
                 browser-url: "{jjb_git}"
         script-path: ".ci/Jenkinsfile"
