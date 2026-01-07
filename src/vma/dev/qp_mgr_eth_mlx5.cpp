@@ -56,6 +56,7 @@ static inline uint64_t align_to_WQEBB_up(uint64_t val)
 static bool is_bf(struct ibv_context *ib_ctx)
 {
 	char *env;
+	bool bf_supported = false;
 
 	/* This limitation is done for RM: 1557652, 1894523, 1914464, 2069198 */
 	if (safe_mce_sys().hypervisor != mce_sys_var::HYPER_NONE) {
@@ -68,7 +69,7 @@ static bool is_bf(struct ibv_context *ib_ctx)
 		struct mlx5dv_devx_uar *uar = mlx5dv_devx_alloc_uar(ib_ctx, MLX5DV_UAR_ALLOC_TYPE_BF);
 		if (uar) {
 			mlx5dv_devx_free_uar(uar);
-			return true;
+			bf_supported = true;
 		}
 #else
 #define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
@@ -84,11 +85,16 @@ static bool is_bf(struct ibv_context *ib_ctx)
 				ib_ctx->cmd_fd, page_size * offset);
 		if (addr != MAP_FAILED) {
 			(void)munmap(addr, page_size);
-			return true;
+			bf_supported = true;
 		}
 #endif /* MLX5DV_UAR_ALLOC_TYPE_BF */
 	}
-	return false;
+
+	if (safe_mce_sys().handle_bf && !bf_supported) {
+		__log_warn("Unable to initialize BlueFlame. Performance may be affected.");
+	}
+
+	return bf_supported;
 }
 
 //! Maps ibv_wr_opcode to real MLX5 opcode.
