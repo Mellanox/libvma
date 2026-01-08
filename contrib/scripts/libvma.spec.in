@@ -187,7 +187,7 @@ fi
 %{_mandir}/man8/vma_stats.*
 
 %changelog
-* Mon Jan  5 2026 NVIDIA CORPORATION <networking-support@nvidia.com> 9.8.83-1
-- Bump version to 9.8.83
+* Thu Jan  8 2026 NVIDIA CORPORATION <networking-support@nvidia.com> 9.8.84-1
+- Bump version to 9.8.84
 - Please refer to CHANGES for full changelog.
 
