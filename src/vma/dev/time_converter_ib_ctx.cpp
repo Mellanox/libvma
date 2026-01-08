@@ -26,7 +26,7 @@
 
 #define IB_CTX_TC_DEVIATION_THRESHOLD 10
 
-time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock) :
+time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock_khz) :
 	m_p_ibv_context(ctx), m_ctx_parmeters_id(0)
 {
 #ifdef DEFINED_IBV_CQ_TIMESTAMP
@@ -34,7 +34,7 @@ time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_convers
 		ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
 
 		m_converter_status = TS_CONVERSION_MODE_RAW;
-		current_parameters_set->hca_core_clock = hca_core_clock * USEC_PER_SEC;
+		current_parameters_set->hca_core_clock = hca_core_clock_khz * MSEC_PER_SEC;
 
 		if (ctx_time_converter_mode != TS_CONVERSION_MODE_RAW) {
 			if (sync_clocks(&current_parameters_set->sync_systime, &current_parameters_set->sync_hw_clock)) {
@@ -47,7 +47,7 @@ time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_convers
 		}
 	}
 #else
-	NOT_IN_USE(hca_core_clock);
+	NOT_IN_USE(hca_core_clock_khz);
 #endif
 	if (ctx_time_converter_mode != m_converter_status) {
 		ibchtc_logwarn("converter status different then expected (ibv context %p, value = %d , expected = %d)"
