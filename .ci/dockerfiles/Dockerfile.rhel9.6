@@ -1,0 +1,21 @@
+ARG HARBOR_URL=nbu-harbor.gtm.nvidia.com
+ARG ARCH=x86_64
+ARG OS_VERSION=9.6
+
+FROM $HARBOR_URL/swx-infra/media/$ARCH/base/rhel:$OS_VERSION
+ARG _UID=6213
+ARG _GID=101
+ARG _LOGIN=swx-jenkins
+ARG _HOME=/var/home/$_LOGIN
+RUN echo "${_LOGIN} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    mkdir -p ${_HOME} && \
+    groupadd -f -g "$_GID" "$_LOGIN" && \
+    useradd -u "$_UID" -g "$_GID" -s /bin/bash -m -d ${_HOME} "${_LOGIN}" && \
+    chown -R ${_LOGIN} ${_HOME}
+
+RUN dnf install --allowerasing -y json-c-devel curl \
+    autoconf automake make libtool \
+    gcc-c++ diffutils rpm-build \
+ && dnf clean all \
+ && rm -rf /var/cache/dnf
