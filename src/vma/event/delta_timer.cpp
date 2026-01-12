@@ -29,7 +29,7 @@
 using namespace std::chrono;
 
 #define IS_NODE_INVALID(_node_)		\
-	(!_node_ || !_node_->handler || (_node_->req_type < 0 || _node_->req_type >= INVALID_TIMER))
+	(!_node_ || !_node_->handler.load() || (_node_->req_type < 0 || _node_->req_type >= INVALID_TIMER))
 
 
 timer::timer()
@@ -54,7 +54,7 @@ timer::~timer()
 
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
 {
-	node->handler = handler;
+	node->handler.store(handler);
 	node->req_type = req_type;
 	node->user_data = user_data;
 	node->orig_time_msec = milliseconds(timeout_msec);
@@ -94,7 +94,7 @@ void timer::remove_timer(timer_node_t* node, timer_handler *handler)
 	if (!node) {
 		node = m_list_head;
 		while (node) {
-			if (node->handler == handler) // node found
+			if (node->handler.load() == handler) // node found
 				break;
 			node = node->next;
 		}
@@ -102,14 +102,14 @@ void timer::remove_timer(timer_node_t* node, timer_handler *handler)
 
 	// Here we MUST have a valid node pointer
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (IS_NODE_INVALID(node) || (node->handler != handler)) {
+	if (IS_NODE_INVALID(node) || (node->handler.load() != handler)) {
 		tmr_logfunc("bad <node,handler> combo for removale (%p,%p)", node, handler);
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Invalidate node before freeing it
-	node->handler = NULL;
+	node->handler.store(nullptr);
 	node->req_type = INVALID_TIMER;
 
 	// Remove & Free node
@@ -125,18 +125,18 @@ void timer::remove_all_timers(timer_handler *handler)
 
 	// Look for handler in the list if node wasen't indicated
 	while (node) {
-		if (node->handler == handler) {// node found
+		if (node->handler.load() == handler) {// node found
 			node_tmp = node;
 			node = node->next;
 			// Here we MUST have a valid node pointer
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (IS_NODE_INVALID(node_tmp) || (node_tmp->handler != handler)) {
+			if (IS_NODE_INVALID(node_tmp) || (node_tmp->handler.load() != handler)) {
 				tmr_logfunc("bad <node,handler> combo for removale (%p,%p)", node_tmp, handler);
 				continue;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			// Invalidate node before freeing it
-			node_tmp->handler = NULL;
+			node_tmp->handler.store(nullptr);
 			node_tmp->req_type = INVALID_TIMER;
 			remove_from_list(node_tmp);
 			// Remove & Free node
@@ -200,19 +200,11 @@ void timer::process_registered_timers()
 	timer_node_t* iter = m_list_head;
 	timer_node_t* next_iter;
 	while (iter && (iter->delta_time_msec == milliseconds(0))) {
-		tmr_logfuncall("timer expired on %p", iter->handler);
+		timer_handler * handler = iter->handler.load();
+		tmr_logfuncall("timer expired on %p", handler);
 
-		/* Special check is need to protect
-		 * from using destroyed object pointed by handler
-		 * See unregister_timer_event()
-		 * Object can be destoyed from another thread (lock protection)
-		 * and from current thread (lock and lock count condition)
-		 */
-		if (iter->handler &&
-			!iter->lock_timer.trylock() &&
-			(1 == iter->lock_timer.is_locked_by_me())) {
-			iter->handler->handle_timer_expired(iter->user_data);
-			iter->lock_timer.unlock();
+		if (handler) {
+			handler->safe_handle_timer_expired(iter->user_data);
 		}
 		next_iter = iter->next;
 
@@ -225,13 +217,13 @@ void timer::process_registered_timers()
 			break;
 
 		case ONE_SHOT_TIMER:
-			remove_timer(iter, iter->handler);
+			remove_timer(iter, handler);
 			break;
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		case INVALID_TIMER:
 		default:
-			tmr_logwarn("invalid timer expired on %p", iter->handler);
+			tmr_logwarn("invalid timer expired on %p", handler);
 			break;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END

@@ -11,8 +11,7 @@
 #include "vma/util/utils.h"
 #include "vma/util/vma_stats.h"
 #include "vma/lwip/tcp.h"
-#include "vma/vma_extra.h"
-#include "vma/util/sys_vars.h"
+#include "vma/util/vtypes.h"
 
 typedef enum {
 	e_K = 1024,

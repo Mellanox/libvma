@@ -8,6 +8,7 @@
 #ifndef DELTA_TIMER_H
 #define DELTA_TIMER_H
 
+#include <atomic>
 #include <chrono>
 #include "utils/lock_wrapper.h"
 
@@ -32,18 +33,13 @@ struct timer_node_t {
 	std::chrono::milliseconds            delta_time_msec;
 	/* the orig timer requested (saved in order to re-register periodic timers) */
 	std::chrono::milliseconds            orig_time_msec;
-	/* control thread-safe access to handler. Recursive because unregister_timer_event()
-	 * can be called from handle_timer_expired()
-	 * that is under trylock() inside process_registered_timers
-	 */
-	lock_spin_recursive     lock_timer;
 	/* link to the context registered */
-	timer_handler*          handler;
-	void*                   user_data;
-	timers_group*           group;
-	timer_req_type_t        req_type;
-	struct timer_node_t*    next;
-	struct timer_node_t*    prev;
+	std::atomic<timer_handler*> handler;
+	void*                       user_data;
+	timers_group*               group;
+	timer_req_type_t            req_type;
+	struct timer_node_t*        next;
+	struct timer_node_t*        prev;
 }; // used by the list
 
 class timer 
