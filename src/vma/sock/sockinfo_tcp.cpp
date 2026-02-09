@@ -4715,8 +4715,12 @@ void tcp_timers_collection::handle_timer_expired(void* user_data)
 	NOT_IN_USE(user_data);
 	timer_node_t* iter = m_p_intervals[m_n_location];
 	while (iter) {
-		__log_funcall("timer expired on %p", iter->handler);
-		iter->handler->handle_timer_expired(iter->user_data);
+		timer_handler * handler = iter->handler.load();
+		__log_funcall("timer expired on %p", handler);
+		if ( handler )
+		{
+			handler->safe_handle_timer_expired(iter->user_data);
+		}
 		iter = iter->next;
 	}
 	m_n_location = (m_n_location + 1) % m_n_intervals_size;
@@ -4727,7 +4731,7 @@ void tcp_timers_collection::handle_timer_expired(void* user_data)
 
 void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* handler, void* user_data)
 {
-	node->handler = handler;
+	node->handler.store(handler);
 	node->user_data = user_data;
 	node->group = this;
 	node->next = NULL;
@@ -4776,7 +4780,7 @@ void tcp_timers_collection::remove_timer(timer_node_t* node)
 		}
 	}
 
-	__log_dbg("TCP timer handler [%p] was removed", node->handler);
+	__log_dbg("TCP timer handler [%p] was removed", node->handler.load());
 
 	free(node);
 }
