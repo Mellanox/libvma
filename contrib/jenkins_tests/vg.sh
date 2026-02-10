@@ -95,7 +95,7 @@ for test_link in $test_ip_list; do
 
 		if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 		then
-			${sudo_cmd} pkill -9 -f $test_app 2>/dev/null || true
+			${sudo_cmd} pkill -SIGINT -f $test_app 2>/dev/null || true
 			sleep 10
 			# in case SIGINT didn't work
 			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
