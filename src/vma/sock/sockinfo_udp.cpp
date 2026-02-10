@@ -1774,6 +1774,12 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	struct vma_completion_t *completion;
 
 	/* Try to process socketxtreme_poll() completion directly */
+	if (unlikely(!m_p_rx_ring)) {
+		/* First packet can arrive before ring pointer is latched;
+		 * derive it from the descriptor owner to avoid NULL deref.
+		 */
+		m_p_rx_ring = p_desc->p_desc_owner;
+	}
 	m_socketxtreme.completion = m_p_rx_ring->get_comp();
 
 	if (m_socketxtreme.completion) {
