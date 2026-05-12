@@ -9,6 +9,7 @@
 #define TIME_CONVERTER_PTP_H
 
 #include <infiniband/verbs.h>
+#include "vma/ib/base/verbs_extra.h"
 #include "vma/event/timer_handler.h"
 #include <vma/util/sys_vars.h>
 #include "time_converter.h"

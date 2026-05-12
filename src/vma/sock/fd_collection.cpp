@@ -634,7 +634,7 @@ void  fd_collection::handle_timer_expired(void* user_data)
 			if (si_tcp) {
 				//In case of TCP socket progress the TCP connection
 				fdcoll_logfunc("Call to handler timer of TCP socket:%d", (*itr)->get_fd());
-				si_tcp->handle_timer_expired(NULL);
+				si_tcp->safe_handle_timer_expired(NULL);
 			}
 			itr++;
 		}

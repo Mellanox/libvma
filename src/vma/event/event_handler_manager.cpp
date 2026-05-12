@@ -74,9 +74,6 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	timer_node_t* timer_node = (timer_node_t*)node;
-	timer_node->lock_timer=lock_spin_recursive("timer");
-
 	reg_action_t reg_action;
 	memset(&reg_action, 0, sizeof(reg_action));
 	reg_action.type = REGISTER_TIMER;
@@ -116,30 +113,19 @@ void event_handler_manager::unregister_timer_event(timer_handler* handler, void*
 	reg_action.type = UNREGISTER_TIMER;
 	reg_action.info.timer.handler = handler;
 	reg_action.info.timer.node = node;
-
-	/* Special protection is needed to avoid scenario when deregistration is done
-	 * during timer_handler object destruction, timer node itself is not removed
-	 * and time for this timer node is expired. In this case there is no guarantee
-	 * to operate with timer_handler object.
-	 * See timer::process_registered_timers()
-	 * Do just lock() to protect timer_handler inside process_registered_timers()
-	 */
-	if (node) {
-		timer_node_t* timer_node = (timer_node_t*)node;
-		timer_node->lock_timer.lock();
-	}
-
 	post_new_reg_action(reg_action);
 }
 
 void event_handler_manager::unregister_timers_event_and_delete(timer_handler* handler)
 {
 	evh_logdbg("timer handler '%p'", handler);
-	reg_action_t reg_action;
-	memset(&reg_action, 0, sizeof(reg_action));
-	reg_action.type = UNREGISTER_TIMERS_AND_DELETE;
-	reg_action.info.timer.handler = handler;
-	post_new_reg_action(reg_action);
+	if( handler != nullptr && !handler->set_destroying_state()) {
+		reg_action_t reg_action;
+		memset(&reg_action, 0, sizeof(reg_action));
+		reg_action.type = UNREGISTER_TIMERS_AND_DELETE;
+		reg_action.info.timer.handler = handler;
+		post_new_reg_action(reg_action);
+	}
 }
 
 void event_handler_manager::register_ibverbs_event(int fd, event_handler_ibverbs *handler, 
