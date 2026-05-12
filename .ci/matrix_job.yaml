@@ -212,6 +212,7 @@ steps:
       [ "x${do_coverity}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cov=${action} ./contrib/test_jenkins.sh
     parallel: false
+    archiveArtifacts: 'jenkins/'
     onfail: |
       ./.ci/artifacts.sh
     archiveArtifacts-onfail: |
