@@ -1015,6 +1015,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					if (goto_os) {
 						ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 						if (ret) return ret;
+					} else {
+						m_so_bindtodevice_ip = mc_if;
 					}
 
 					mc_change_membership_end_helper(mc_grp, __optname, mreqprm.imr_sourceaddr.s_addr);
