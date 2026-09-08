@@ -23,6 +23,7 @@
 #define NSEC_PER_SEC	1000000000L
 #define FSEC_PER_SEC	1000000000000000L
 
+#define HZ_PER_KHZ      1000L
 
 /*
  * Convenience macros for operations on timevals
