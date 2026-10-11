@@ -55,7 +55,7 @@ runs_on_dockers:
   - {name: 'toolbox', url: '${registry_host}/hpcx/x86_64/rhel8.6/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', file: '.ci/dockerfiles/Dockerfile.rhel8.6', category: 'tool', arch: 'x86_64', tag: '20250630', uri: 'vma/$arch/$name/bduck', build_args: '--no-cache --target bduck'}
   - {name: 'header-check', url: '${registry_host}/toolbox/header_check:0.0.58', category: 'tool', arch: 'x86_64', tag: '0.0.58'}
-  - {name: 'secret-scan', url: '${registry_host}/toolbox/secret_scan:0.0.27', arch: 'x86_64', tag: '0.0.27', category: 'tool'}
+  - {name: 'secret-scan', url: '${registry_host}/swx-storage/tools/secret_scan:devops-stable', arch: 'x86_64', tag: 'devops-stable', category: 'tool'}
 
 runs_on_agents:
   - {nodeLabel: 'beni09', category: 'base'}
