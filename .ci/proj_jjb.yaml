@@ -90,6 +90,10 @@
             name: "do_copyrights"
             default: true
             description: "Check copyrights in source headers"
+        - bool:
+            name: "do_secretscan"
+            default: true
+            description: "Check for secrets in source code"
     triggers:
         - github-pull-request:
             cron: 'H/5 * * * *'

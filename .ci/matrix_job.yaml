@@ -46,6 +46,7 @@ runs_on_dockers:
   - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
   - {name: 'header-check', url: 'harbor.mellanox.com/toolbox/header_check:0.0.14', category: 'tool', arch: 'x86_64', tag: '0.0.14'}
+  - {name: 'secret-scan', url: 'nbu-harbor.gtm.nvidia.com/swx-storage/tools/secret_scan:devops-stable', category: 'tool', arch: 'x86_64', tag: 'devops-stable'}
 
 runs_on_agents:
   - {nodeLabel: 'r-aa-fatty09', category: 'base'}
@@ -62,6 +63,9 @@ matrix:
       - x86_64
       - aarch64
       - ppc64le
+
+credentials:
+  - {credentialsId: 'mellanox_github_credentials', usernameVariable: 'MELLANOX_GH_USER', passwordVariable: 'MELLANOX_GH_TOKEN'}
 
 env:
   jenkins_opt_artifacts: 'none'
@@ -90,6 +94,18 @@ steps:
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
     archiveArtifacts: '*.log,*.tar.gz'
+    parallel: false
+
+  - name: Secret Scan
+    credentialsId: 'mellanox_github_credentials'
+    enable: ${do_secretscan}
+    containerSelector:
+      - "{name: 'secret-scan', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
+    run: |
+      env GITHUB_TOKEN=$MELLANOX_GH_TOKEN /opt/nvidia/secret_scan.py --path $WORKSPACE --git-repo $WORKSPACE --report-file secret_scan.html
+    archiveArtifacts: '*.html'
     parallel: false
 
   - name: Autogen
