@@ -24,6 +24,12 @@ env:
 volumes:
   - {mountPath: /hpc/local/inst/hpc-internal-tools, hostPath: /hpc/local/inst/hpc-internal-tools}
 
+# TODO: placeholder. Store the NVBugs API token in Jenkins, set its
+# credential ID here and in the Redmine step, then uncomment both.
+# Until then, commits with an NVBug reference fail the check.
+#credentials:
+#  - {credentialsId: 'PLACEHOLDER-nvbugs-api-token', type: 'string', variable: 'NVBUGS_TOKEN'}
+
 runs_on_dockers:
   - {name: 'ub22.04-base', url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu22.04/base', arch: 'x86_64'}
 
@@ -31,12 +37,12 @@ steps:
   - name: Redmine
     containerSelector:
       - "{name: 'ub22.04-base'}"
+    # TODO: placeholder, see the credentials block above.
+    #credentialsId: 'PLACEHOLDER-nvbugs-api-token'
     run: |
       #!/bin/bash -eExl
-      env
       python3 -m pip install six
-      python3 /hpc/local/inst/hpc-internal-tools/tools/git_tools/git_redmine/update_redmine_from_git_commit_python3.py --update --project_id=9 --on_email_mismatch=warn \
-      --on_issue_not_in_project=fail --pr_url=${ghprbPullLink} --commit_id=${ghprbActualCommit}
+      python3 .ci/check_issue.py --commit-id "${ghprbActualCommit}" --pr-url "${ghprbPullLink}"
     parallel: false
 
 pipeline_start:

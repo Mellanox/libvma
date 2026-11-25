@@ -1,4 +1,5 @@
 issue: <RM#> <Description>
+# For a bug tracked in NVBugs use instead: NVBug: <NVBugs#> <Description>
 
 log: <Details>
 

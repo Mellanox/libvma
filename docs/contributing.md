@@ -122,6 +122,16 @@ Any line of the commit message cannot be longer than 100 characters.
 issue: <number> <short summary>
 ```
 
+`issue:` refers to a Redmine ticket: a task, a feature request or an older bug.
+A bug tracked in NVBugs uses `NVBug:` instead:
+
+```
+NVBug: <number> <short summary>
+```
+
+The colon is required and case does not matter. `NVBugs:`, `NVBug #<number>` and `Bug:` are not recognized.
+Redmine and NVBugs numbers overlap, so the keyword tells CI which tracker to check.
+
 #### <a name="commit-body"></a>Commit Message Body
 
 Message body must explain the motivation for the change. This commit message should explain **WHY** you are making the change.
